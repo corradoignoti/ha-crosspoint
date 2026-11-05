@@ -30,6 +30,15 @@ def library(hass: HomeAssistant, tmp_path):
     return tmp_path
 
 
+@pytest.fixture(autouse=True)
+def mock_setup_entry():
+    """Do not set up the created entry: these tests cover the flow only."""
+    with patch(
+        "custom_components.crosspoint.async_setup_entry", AsyncMock(return_value=True)
+    ) as mock:
+        yield mock
+
+
 def _patch(discovered=(), status=None):
     return (
         patch(f"{FLOW}.async_discover", AsyncMock(return_value=list(discovered))),
