@@ -286,6 +286,17 @@ class CrossPointPanel extends LitElement {
     });
   }
 
+  async _reconcile() {
+    await this._run("reconcile", async () => {
+      try {
+        const { removed, adopted } = await this._call("crosspoint/reconcile", {});
+        this._toast(this._t("done_reconciled", { removed, adopted }));
+      } catch (err) {
+        this._toast(err.message);
+      }
+    });
+  }
+
   _modeOf(item) {
     return this._modes[item.file] || item.mode || "normal";
   }
@@ -315,6 +326,15 @@ class CrossPointPanel extends LitElement {
                   </option>`,
               )}
             </select>`
+          : nothing}
+        ${this._state
+          ? html`<button
+              class="action toolbar-button"
+              ?disabled=${!this._state.online || this._busy.has("reconcile")}
+              @click=${this._reconcile}
+            >
+              ${t("reconcile")}
+            </button>`
           : nothing}
         ${this._state
           ? html`<button

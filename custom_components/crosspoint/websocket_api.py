@@ -13,6 +13,7 @@ from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 
 from .const import DOMAIN, EVENT_UPLOAD_PROGRESS, KIND_BOOK, KIND_WALLPAPER
+from .transfers import async_reconcile_device
 from .wallpaper import MODE_NORMAL, MODES
 
 if TYPE_CHECKING:
@@ -34,6 +35,7 @@ def async_setup_websocket_api(hass: HomeAssistant) -> None:
         ws_remove_wallpaper,
         ws_wallpaper_check,
         ws_rescan,
+        ws_reconcile,
     ):
         websocket_api.async_register_command(hass, command)
 
@@ -234,6 +236,11 @@ async def _rescan(entry: CrossPointConfigEntry, msg: dict) -> None:
     await entry.runtime_data.library.async_refresh()
 
 
+async def _reconcile(entry: CrossPointConfigEntry, msg: dict) -> dict:
+    result = await async_reconcile_device(entry)
+    return {"removed": result.removed, "adopted": result.adopted}
+
+
 _FILE = {vol.Required("file"): str}
 _FORGET = {vol.Optional("forget_missing", default=False): bool}
 
@@ -267,3 +274,4 @@ ws_wallpaper_check = _action(
     _wallpaper_check,
 )
 ws_rescan = _action({vol.Required("type"): "crosspoint/rescan"}, _rescan)
+ws_reconcile = _action({vol.Required("type"): "crosspoint/reconcile"}, _reconcile)

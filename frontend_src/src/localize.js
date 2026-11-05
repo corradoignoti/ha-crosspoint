@@ -10,6 +10,7 @@ const STRINGS = {
     no_entries: "No CrossPoint e-reader is configured.",
     loading: "Loading…",
     rescan: "Rescan library",
+    reconcile: "Sync with device",
     search: "Search",
     tab_books: "Books",
     tab_wallpapers: "Wallpapers",
@@ -46,6 +47,8 @@ const STRINGS = {
     send_anyway: "Send anyway",
     done_sent: "{name} sent to the e-reader.",
     done_removed: "{name} removed from the e-reader.",
+    done_reconciled:
+      "Synced with the e-reader: {removed} no longer on it, {adopted} found.",
     device_info: "{model} · {host}",
     firmware: "firmware {version}",
     stats_title: "Reading stats",
@@ -74,6 +77,7 @@ const STRINGS = {
     no_entries: "Nessun e-reader CrossPoint configurato.",
     loading: "Caricamento…",
     rescan: "Riscansiona libreria",
+    reconcile: "Sincronizza con dispositivo",
     search: "Cerca",
     tab_books: "Libri",
     tab_wallpapers: "Sfondi",
@@ -110,6 +114,8 @@ const STRINGS = {
     send_anyway: "Invia comunque",
     done_sent: "{name} inviato all'e-reader.",
     done_removed: "{name} rimosso dall'e-reader.",
+    done_reconciled:
+      "Sincronizzato con l'e-reader: {removed} non più presenti, {adopted} trovati.",
     device_info: "{model} · {host}",
     firmware: "firmware {version}",
     stats_title: "Statistiche di lettura",

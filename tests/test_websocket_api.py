@@ -149,3 +149,13 @@ async def test_requires_admin(hass, entry, hass_ws_client, hass_admin_user):
     await client.send_json_auto_id({"type": "crosspoint/entries"})
     msg = await client.receive_json()
     assert msg["error"]["code"] == "unauthorized"
+
+
+async def test_reconcile(hass: HomeAssistant, entry, hass_ws_client):
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id(
+        {"type": "crosspoint/reconcile", "entry_id": entry.entry_id}
+    )
+    msg = await client.receive_json()
+    assert msg["success"]
+    assert msg["result"] == {"removed": 0, "adopted": 0}
