@@ -22,10 +22,12 @@ from .const import (
 )
 from .coordinator import CrossPointDeviceCoordinator
 from .library import LibraryCoordinator, async_remove_library_cache
+from .panel import async_register_panel, async_unregister_panel
 from .services import async_setup_services
 from .store import TransferStore
 from .transfers import BookManager, WallpaperManager
 from .views import CrossPointCoverView
+from .websocket_api import async_setup_websocket_api
 
 PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
@@ -48,8 +50,9 @@ type CrossPointConfigEntry = ConfigEntry[CrossPointRuntimeData]
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up the integration-wide services and views."""
+    """Set up the integration-wide services, views and WebSocket commands."""
     async_setup_services(hass)
+    async_setup_websocket_api(hass)
     hass.http.register_view(CrossPointCoverView())
     return True
 
@@ -78,13 +81,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: CrossPointConfigEntry) -
     await entry.runtime_data.library.async_config_entry_first_refresh()
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    await async_register_panel(hass)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: CrossPointConfigEntry) -> bool:
-    """Unload a config entry."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    """Unload a config entry; remove the panel with the last one."""
+    if not await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
+        return False
+    others = [
+        e
+        for e in hass.config_entries.async_loaded_entries(DOMAIN)
+        if e.entry_id != entry.entry_id
+    ]
+    if not others:
+        async_unregister_panel(hass)
+    return True
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: CrossPointConfigEntry) -> None:
