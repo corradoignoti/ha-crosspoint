@@ -36,6 +36,8 @@ _LOGGER = logging.getLogger(__name__)
 BOOK_EXTENSIONS = (".epub",)
 WALLPAPER_EXTENSIONS = (".bmp", ".gif", ".jpeg", ".jpg", ".png", ".webp")
 CACHE_VERSION = 1
+# Bump to discard cached entries when indexing changes (v2: wallpaper thumbnails).
+CACHE_FORMAT = 2
 
 STATUS_NOT_INSTALLED = "not_installed"
 STATUS_INSTALLED = "installed"
@@ -149,6 +151,8 @@ class LibraryCoordinator(DataUpdateCoordinator[LibraryData]):
         if self._cache is None:
             stored = await self._cache_store.async_load() or {}
             self._cache = {}
+            if stored.get("format") != CACHE_FORMAT:
+                stored = {}
             for raw in stored.get("files", []):
                 item = LibraryFile(**{**raw, "authors": tuple(raw.get("authors", ()))})
                 self._cache[f"{item.kind}:{item.file}"] = item
@@ -158,7 +162,10 @@ class LibraryCoordinator(DataUpdateCoordinator[LibraryData]):
         if cache != self._cache:
             self._cache = cache
             await self._cache_store.async_save(
-                {"files": [asdict(f) for f in cache.values()]}
+                {
+                    "format": CACHE_FORMAT,
+                    "files": [asdict(f) for f in cache.values()],
+                }
             )
         return data
 
@@ -219,10 +226,10 @@ class LibraryCoordinator(DataUpdateCoordinator[LibraryData]):
                 _LOGGER.warning("Cannot read EPUB metadata of %s: %s", path, err)
             else:
                 title, authors = meta.title, meta.authors
-                if meta.cover and (thumb := make_thumbnail(meta.cover)):
-                    self.covers_dir.mkdir(parents=True, exist_ok=True)
-                    (self.covers_dir / f"{sha256}.jpg").write_bytes(thumb)
-                    has_cover = True
+                if meta.cover:
+                    has_cover = self._write_thumbnail(sha256, meta.cover)
+        else:
+            has_cover = self._write_thumbnail(sha256, path.read_bytes())
         return LibraryFile(
             kind=kind,
             file=rel,
@@ -233,6 +240,13 @@ class LibraryCoordinator(DataUpdateCoordinator[LibraryData]):
             authors=authors,
             has_cover=has_cover,
         )
+
+    def _write_thumbnail(self, sha256: str, image: bytes) -> bool:
+        if (thumb := make_thumbnail(image)) is None:
+            return False
+        self.covers_dir.mkdir(parents=True, exist_ok=True)
+        (self.covers_dir / f"{sha256}.jpg").write_bytes(thumb)
+        return True
 
     def _cover_path(self, item: LibraryFile) -> Path:
         return self.covers_dir / f"{item.sha256}.jpg"
@@ -246,10 +260,10 @@ class LibraryCoordinator(DataUpdateCoordinator[LibraryData]):
                 cover.unlink(missing_ok=True)
 
     def cover_path(self, sha256: str) -> Path | None:
-        """Return the thumbnail of a library book, if there is one."""
+        """Return the thumbnail of a library file, if there is one."""
         if self.data is None:
             return None
-        for item in self.data.books.values():
+        for item in (*self.data.books.values(), *self.data.wallpapers.values()):
             if item.sha256 == sha256 and item.has_cover:
                 return self._cover_path(item)
         return None

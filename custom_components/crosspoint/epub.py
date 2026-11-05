@@ -128,12 +128,18 @@ def read_epub(path: str) -> EpubMetadata:
 
 
 def make_thumbnail(image: bytes) -> bytes | None:
-    """Return a JPEG thumbnail of a cover, or None if it cannot be decoded."""
+    """Return a JPEG thumbnail of an image, or None if it cannot be decoded.
+
+    Transparent areas are shown on white.
+    """
     try:
         with Image.open(io.BytesIO(image)) as img:
             img.thumbnail(THUMBNAIL_SIZE)
+            rgba = img.convert("RGBA")
+            flat = Image.new("RGBA", rgba.size, (255, 255, 255, 255))
+            flat.alpha_composite(rgba)
             out = io.BytesIO()
-            img.convert("RGB").save(out, "JPEG", quality=80, optimize=True)
+            flat.convert("RGB").save(out, "JPEG", quality=80, optimize=True)
             return out.getvalue()
     except (OSError, ValueError, Image.DecompressionBombError):
         return None

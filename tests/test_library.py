@@ -83,6 +83,7 @@ async def test_scan(hass: HomeAssistant, entry):
         True,
     )
     assert data.books["Sci-Fi/Foundation.epub"].has_cover is False
+    assert data.wallpapers["sea.png"].has_cover is True
     assert hass.states.get(LIBRARY).state == "2"
     assert hass.states.get(INSTALLED).state == "0"
 
@@ -141,9 +142,12 @@ async def test_rescan_uses_cache(hass: HomeAssistant, entry, library):
     await entry.runtime_data.library.async_refresh()
     await hass.async_block_till_done()
     assert hass.states.get(LIBRARY).state == "2"
-    new = entry.runtime_data.library.data.books["New.epub"]
+    data = entry.runtime_data.library.data
     covers = entry.runtime_data.library.covers_dir.glob("*.jpg")
-    assert [c.name for c in covers] == [f"{new.sha256}.jpg"]
+    assert {c.name for c in covers} == {
+        f"{data.books['New.epub'].sha256}.jpg",
+        f"{data.wallpapers['sea.png'].sha256}.jpg",
+    }
 
 
 async def test_cover_view(hass: HomeAssistant, entry, hass_client):

@@ -14,7 +14,7 @@ _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
 class CrossPointCoverView(HomeAssistantView):
-    """Serve cached book cover thumbnails.
+    """Serve cached thumbnails of book covers and wallpapers.
 
     Authentication is required. Image tags in the panel use signed paths
     (``auth/sign_path``) to load them.
@@ -27,7 +27,7 @@ class CrossPointCoverView(HomeAssistantView):
     async def get(
         self, request: web.Request, entry_id: str, sha256: str
     ) -> web.StreamResponse:
-        """Return the JPEG thumbnail of one book."""
+        """Return the JPEG thumbnail of one library file."""
         hass = request.app[KEY_HASS]
         entry = hass.config_entries.async_get_entry(entry_id)
         if (
