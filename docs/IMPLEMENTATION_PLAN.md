@@ -13,7 +13,7 @@ commit (one topic per commit).
 | 2     | Device reachability           | Done        |
 | 3     | Library scan                  | Done        |
 | 4     | Tracking store + book actions | Done        |
-| 5     | Wallpapers                    | Not started |
+| 5     | Wallpapers                    | Done        |
 | 6     | Sidebar panel (frontend)      | Not started |
 | 7     | Reading stats                 | Not started |
 | 8     | Services, i18n, docs, release | Not started |
@@ -206,17 +206,30 @@ tests/
 - Services take a `config_entry_id`, are registered in `async_setup`, and
   raise translated errors.
 
-### Phase 5 — Wallpapers
+### Phase 5 — Wallpapers (done)
 
-- Pillow pipeline: `ImageOps.exif_transpose`, `ImageOps.fit` to the model
-  resolution (LANCZOS), grayscale, Floyd–Steinberg dithering.
-- Normal mode: uncompressed 24-bit BMP to `/.sleep/<name>.bmp`.
-- Transparent mode: PNG with alpha to `/.sleep-overlay/<name>.png`. Dithering
-  applies to the visible pixels; alpha is preserved.
-- A `wallpaper/check` WebSocket command reports when an image has no
-  transparency (no alpha channel, or alpha fully opaque), so the panel can warn
-  before a transparent send.
-- Sent wallpapers are tracked in the store and can be removed.
+- Pipeline (`wallpaper.py`, Pillow): EXIF orientation, palette and grayscale
+  transparency normalized to RGBA, `ImageOps.fit` to the model resolution
+  (LANCZOS), grayscale, Floyd-Steinberg dithering to 4 evenly spaced gray
+  levels (0, 85, 170, 255).
+- Normal mode: alpha flattened on white, uncompressed 24-bit BMP sent to
+  `/.sleep/`.
+- Transparent mode: dithered gray in RGB plus the original alpha channel, PNG
+  sent to `/.sleep-overlay/`. An image without transparent pixels is refused
+  unless `force` is set; `WallpaperManager.async_check()` reports
+  transparency without the device, for the panel warning.
+- Device file names are `<safe stem>-<first 8 hex of source SHA-256>.<ext>`:
+  sources with the same stem never collide, and a modified source gets a new
+  file.
+- One device copy per source image: re-sending the same conversion
+  overwrites it in place; sending another mode (or a modified source) uploads
+  the new file, then deletes the previous one.
+- Transfers record the `mode`. Services `send_wallpaper` (`mode`, `force`;
+  response `device_path`, `sha256`, `has_transparency`) and
+  `remove_wallpaper`.
+- Book and wallpaper operations share `TransferManager` (`transfers.py`):
+  path validation, upload and delete with error mapping, progress events,
+  removal of tracked files.
 
 ### Phase 6 — Sidebar panel
 
@@ -274,8 +287,10 @@ tests/
   reliable.
 - Default destination folder for books on the device (`/Books` assumed).
 - Expected orientation of sleep images on the X3 (528 × 792 assumed portrait).
+- Gray levels used by the firmware for sleep images (4 assumed). If the
+  firmware renders them in 1 bit, dither to 2 levels instead.
 
 ## Estimate
 
-About 10–13 working days in total, of which phases 0–4 (about 5 days) are
+About 10–13 working days in total, of which phases 0–5 (about 6 days) are
 done.
