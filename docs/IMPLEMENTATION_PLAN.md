@@ -1,0 +1,255 @@
+# Implementation plan
+
+This plan turns the specification in [CLAUDE.md](../CLAUDE.md) into phases. Each
+phase ends with passing tests and lint, and every change lands as an atomic
+commit (one topic per commit).
+
+## Status
+
+| Phase | Topic                         | Status      |
+|-------|-------------------------------|-------------|
+| 0     | Scaffolding                   | Done        |
+| 1     | Device client + config flow   | Done        |
+| 2     | Device reachability           | Not started |
+| 3     | Library scan                  | Not started |
+| 4     | Tracking store + book actions | Not started |
+| 5     | Wallpapers                    | Not started |
+| 6     | Sidebar panel (frontend)      | Not started |
+| 7     | Reading stats                 | Not started |
+| 8     | Services, i18n, docs, release | Not started |
+
+Recommended order: 0, 1, 2, 4 (with one test book end to end), then 3, 5, 6, 7, 8.
+
+## Verified facts
+
+These close the "To verify" items in the specification.
+
+### CrossPoint firmware web server
+
+Source: `docs/webserver-endpoints.md` in `crosspoint-reader/crosspoint-reader`.
+
+HTTP, port 80, no authentication:
+
+| Method | Path          | Parameters                                                        | Notes |
+|--------|---------------|-------------------------------------------------------------------|-------|
+| GET    | `/api/status` | none                                                              | JSON: `version`, `firmwareFamily`, `ip`, `mode`, `rssi`, `freeHeap`, `uptime`, `device`. Used as the reachability probe. |
+| GET    | `/api/files`  | query `path` (default `/`)                                        | JSON array of `{name, size, isDirectory, isEpub}`. Dotfiles are hidden unless `showHiddenFiles` is enabled. |
+| GET    | `/download`   | query `path`                                                      | File bytes. |
+| POST   | `/upload`     | query `path`, `overwrite` (`1`/`true`); multipart field `file`    | Without `overwrite`, an existing name returns `400`. |
+| POST   | `/mkdir`      | form `name`, `path`                                               | |
+| POST   | `/delete`     | form `path`, or `paths` (JSON array string)                       | Non-empty folders are rejected. |
+| POST   | `/rename`, `/move` | form                                                         | Files only. Not used yet. |
+
+WebSocket upload, port 81 (`ws://<host>:81/`):
+
+1. Client sends text `START:<filename>:<size>:<path>`.
+2. Server replies `READY`.
+3. Client sends binary chunks.
+4. Server sends `PROGRESS:<received>:<total>` every 64 KB and at completion.
+5. Server sends `DONE`, or `ERROR:<message>`.
+
+WebSocket uploads never overwrite, and only one upload runs at a time.
+Incomplete uploads are deleted by the firmware.
+
+UDP discovery, port 8134: send `hello`, the reply is
+`crosspoint (on <hostname>);<ws_port>`.
+
+### Sleep screen folders
+
+Source: `USER_GUIDE.md` in `crosspoint-reader/crosspoint-reader`.
+
+- Normal sleep images: `/.sleep/` (fallback `/sleep/`), uncompressed 24-bit BMP
+  recommended. A root `sleep.bmp` takes priority over both folders. The firmware
+  picks one image at random when several are present.
+- Transparent overlays (sleep mode "Transparent" or "Cover + Transparent"):
+  `/.sleep-overlay/` (fallback `/sleep-overlay/`). PNG with alpha channel, or
+  32-bit BGRA BMP. Opaque white pixels erase the content behind them.
+
+### CrossPoint Sync API
+
+Source: `docs/API.md` in `crosspoint-reader/crosspoint-sync`.
+
+- Auth headers: `x-auth-user` and `x-auth-key` (lowercase hex MD5 of the
+  password). Failures return `401` with `{"code": 2001}`; repeated failures may
+  return `429`.
+- `GET /users/auth` returns `{"authorized": "OK"}` and validates credentials.
+- `GET /api/v1/stats/summary` returns `sessions`, `seconds`, `pages`,
+  `completed`, `tod[4]` (seconds per time of day), `dow[7]` (seconds Mon–Sun),
+  `anchor_day` (days since 2000-01-01), `history_b64` (reading-day bitmap),
+  `streak`, `current_streak`, `devices[]` (`device_id`, `device`, `updated_at`).
+- `GET /api/v1/stats/global` (optional `device_id`, `since`) returns
+  `devices[]` with a per-device `stats` snapshot, plus `until` for
+  incremental fetches.
+
+## Repository layout
+
+```
+custom_components/crosspoint/
+  __init__.py          # entry setup: runtime data, panel, WS API, services, card
+  manifest.json
+  const.py             # models and resolutions, ports, config keys, defaults
+  config_flow.py       # discovery, device, library steps; options; reconfigure
+  discovery.py         # UDP broadcast discovery
+  api/errors.py        # CrossPointConnectionError, CrossPointResponseError
+  api/device.py        # firmware web server client (HTTP + WebSocket upload)
+  api/sync.py          # CrossPoint Sync stats client
+  coordinator.py       # DeviceCoordinator, StatsCoordinator
+  library.py           # folder scan, EPUB metadata and cover extraction
+  store.py             # transfer tracking (helpers.storage.Store)
+  wallpaper.py         # Pillow conversion pipeline
+  binary_sensor.py     # device online
+  sensor.py            # per-user reading stats
+  services.py, services.yaml
+  websocket_api.py     # commands used by the panel
+  frontend/            # built panel and Lovelace card bundles
+  strings.json, translations/
+frontend_src/          # panel and card sources (built with esbuild/rollup)
+tests/
+```
+
+## Phases
+
+### Phase 0 — Scaffolding (done)
+
+- `manifest.json`, `hacs.json`, `pyproject.toml` (ruff, pytest), README, MIT
+  license.
+- CI: hassfest, HACS validation, ruff and pytest
+  (`pytest-homeassistant-custom-component`).
+- All user-facing strings live in `strings.json` / `translations/` from the
+  start (English and Italian), ready for later i18n.
+
+### Phase 1 — Device client and config flow (done)
+
+- `CrossPointDeviceClient`: status, file listing, `mkdir`, `ensure_dir`,
+  `delete`, `upload`.
+  - Upload prefers the WebSocket protocol and reports progress. It falls back
+    to HTTP when the WebSocket server cannot be reached, and uses HTTP with
+    `overwrite=1` when replacing a file.
+  - An internal lock serializes uploads, matching the firmware limit.
+  - File names containing `/` or `:` are rejected, since they would break the
+    WebSocket `START` message.
+- UDP discovery collects replies for about 2 seconds.
+- Config flow:
+  1. Discovered devices are offered for selection, with manual entry as an
+     alternative.
+  2. Address and model. The model is pre-filled from `/api/status` when it
+     can be recognized. An unreachable device is accepted after a second
+     submit, since the reader is usually not in File Transfer mode while
+     configuring.
+  3. Library folder: must be allowed by Home Assistant
+     (`allowlist_external_dirs`, `/media`) and exist. The subfolders are
+     created when missing.
+- Options flow: library scan interval. Reconfigure flow: address, model and
+  library folders.
+
+### Phase 2 — Device reachability
+
+- `DeviceCoordinator` polls `/api/status` every 15–30 seconds.
+- `binary_sensor.<device>_online` (device class `connectivity`) exposes the
+  state. Firmware version and RSSI become attributes or diagnostic sensors.
+- Central guard `ensure_online()`, used by every service and WebSocket
+  command, raises a translated `device_offline` error.
+- Register a device in the device registry (model, firmware version).
+
+### Phase 3 — Library
+
+- Scan the books and wallpapers subfolders in the executor, periodically
+  (options interval) and on demand (`rescan_library`).
+- EPUB metadata with `zipfile` and ElementTree: `META-INF/container.xml`, then
+  the OPF for `dc:title`, `dc:creator` and the cover (`meta name="cover"` or
+  `properties="cover-image"`).
+- Covers are resized to thumbnails, cached under
+  `.storage/crosspoint/covers/<sha256>.jpg`, and served by an authenticated
+  `HomeAssistantView`.
+- Streaming SHA-256 for each file, cached by `(path, mtime, size)`.
+- Book state: `not_installed`, `installed`, or `modified` (hash differs from
+  the tracked one).
+
+### Phase 4 — Tracking store and book operations
+
+- `Store(version=1)` keyed by library-relative path:
+  `{sha256, sent_at, device_path, kind}` where `kind` is `book` or
+  `wallpaper`.
+- `send_book`: guard online, upload, then write the store only after `DONE` or
+  HTTP 200. A modified book is re-sent with overwrite.
+- `remove_book`: guard online, `POST /delete`, then remove the store entry
+  only after HTTP 200. If the device reports the file missing, offer to drop
+  the stale entry.
+- Destination folder on the device is configurable, default `/Books`, created
+  with `ensure_dir` when needed.
+- Upload progress is published as `crosspoint_upload_progress` events for the
+  panel.
+
+### Phase 5 — Wallpapers
+
+- Pillow pipeline: `ImageOps.exif_transpose`, `ImageOps.fit` to the model
+  resolution (LANCZOS), grayscale, Floyd–Steinberg dithering.
+- Normal mode: uncompressed 24-bit BMP to `/.sleep/<name>.bmp`.
+- Transparent mode: PNG with alpha to `/.sleep-overlay/<name>.png`. Dithering
+  applies to the visible pixels; alpha is preserved.
+- A `wallpaper/check` WebSocket command reports when an image has no
+  transparency (no alpha channel, or alpha fully opaque), so the panel can warn
+  before a transparent send.
+- Sent wallpapers are tracked in the store and can be removed.
+
+### Phase 6 — Sidebar panel
+
+- Register a `panel_custom` with static files served through
+  `async_register_static_paths`.
+- Web component (Lit or vanilla), built from `frontend_src/` into a single
+  committed bundle.
+- Views:
+  - Books: cover grid, status badges, Send / Remove / Re-send.
+  - Wallpapers: thumbnails, mode choice, Send.
+  - Header: device online state and Rescan button.
+- Send and Remove are disabled while the device is offline; the panel follows
+  the online entity state.
+- WebSocket commands (admin only): `crosspoint/library`,
+  `crosspoint/send_book`, `crosspoint/remove_book`,
+  `crosspoint/send_wallpaper`, `crosspoint/wallpaper_check`,
+  `crosspoint/rescan`.
+- UI strings come from a translation dictionary, not inline literals.
+
+### Phase 7 — Reading stats
+
+- Sync users configured as config subentries (or an options list). Store the
+  MD5 key, never the plain password, and never expose credentials to the
+  frontend.
+- Server URL configurable, default `https://sync.crosspointreader.com`.
+- Validate credentials with `/users/auth`.
+- One `StatsCoordinator` per user, polling every 15–30 minutes, plus the
+  `refresh_reading_stats` service. Independent of device reachability.
+- Sensors per user: total reading time, pages, books finished, sessions,
+  current streak, longest streak, reading minutes today. `dow` and `tod` as
+  attributes.
+- Lovelace card `custom:crosspoint-stats-card`, registered with
+  `add_extra_js_url`: single user or side-by-side comparison, reading the
+  sensor entities.
+
+### Phase 8 — Services, i18n, docs, release
+
+- `services.yaml` with selectors for `send_book`, `remove_book`,
+  `send_wallpaper` (mode `normal` / `transparent`), `rescan_library`,
+  `refresh_reading_stats`.
+- Complete Italian translations and the panel dictionary.
+- README: HACS install, Samba setup, panel and card usage, security note.
+- Tests: config flow, device client against the fake firmware server, EPUB
+  parser, wallpaper pipeline (golden images), store, services.
+- First tagged release for HACS.
+
+## Open questions
+
+- Encoding of `history_b64` and the element shape of `daily[]` in the Sync
+  stats: needed for "reading minutes today". Requires a real sample or the
+  server source.
+- Deleting files inside dot-folders (`/.sleep`, `/.sleep-overlay`): to be
+  tested on real firmware, since dotfiles are hidden from listings.
+- Values of `/api/status` `device` for each model, to make model detection
+  reliable.
+- Default destination folder for books on the device (`/Books` assumed).
+- Expected orientation of sleep images on the X3 (528 × 792 assumed portrait).
+
+## Estimate
+
+About 10–13 working days in total, of which phases 0–1 (about 2 days) are
+done.
