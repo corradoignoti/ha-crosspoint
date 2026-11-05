@@ -31,3 +31,11 @@ remove_book:
       default: false
       selector:
         boolean:
+
+rescan_library:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: crosspoint

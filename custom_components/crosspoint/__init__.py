@@ -22,8 +22,10 @@ from .const import (
     DeviceModel,
 )
 from .coordinator import CrossPointDeviceCoordinator
+from .library import LibraryCoordinator, async_remove_library_cache
 from .services import async_setup_services
 from .store import TransferStore
+from .views import CrossPointCoverView
 
 PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
@@ -38,14 +40,16 @@ class CrossPointRuntimeData:
     coordinator: CrossPointDeviceCoordinator
     store: TransferStore
     books: BookManager
+    library: LibraryCoordinator
 
 
 type CrossPointConfigEntry = ConfigEntry[CrossPointRuntimeData]
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up the integration-wide services."""
+    """Set up the integration-wide services and views."""
     async_setup_services(hass)
+    hass.http.register_view(CrossPointCoverView())
     return True
 
 
@@ -65,9 +69,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: CrossPointConfigEntry) -
         coordinator=coordinator,
         store=store,
         books=BookManager(hass, entry, coordinator, store),
+        library=LibraryCoordinator(hass, entry, store),
     )
     # An offline reader is a normal state, so the first refresh never fails.
     await coordinator.async_config_entry_first_refresh()
+    await entry.runtime_data.library.async_config_entry_first_refresh()
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
@@ -80,8 +86,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: CrossPointConfigEntry) 
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: CrossPointConfigEntry) -> None:
-    """Delete the transfer history when the entry is removed."""
+    """Delete the transfer history and library cache when the entry is removed."""
     await TransferStore(hass, entry.entry_id).async_remove_all()
+    await async_remove_library_cache(hass, entry.entry_id)
 
 
 async def _async_update_listener(

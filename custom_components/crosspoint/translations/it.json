@@ -96,6 +96,22 @@
     "sensor": {
       "rssi": {
         "name": "Segnale Wi-Fi"
+      },
+      "library_books": {
+        "name": "Libri in libreria",
+        "unit_of_measurement": "libri"
+      },
+      "installed_books": {
+        "name": "Libri sul dispositivo",
+        "unit_of_measurement": "libri",
+        "state_attributes": {
+          "modified": {
+            "name": "Modificati dopo l'invio"
+          },
+          "missing_from_library": {
+            "name": "Mancanti dalla libreria"
+          }
+        }
       }
     }
   },
@@ -165,6 +181,16 @@
         "forget_missing": {
           "name": "Dimentica se mancante",
           "description": "Smette di tracciare il libro se non è più sul dispositivo."
+        }
+      }
+    },
+    "rescan_library": {
+      "name": "Riscansiona libreria",
+      "description": "Scansiona subito la cartella della libreria per trovare libri e sfondi nuovi, modificati o rimossi.",
+      "fields": {
+        "config_entry_id": {
+          "name": "E-reader",
+          "description": "L'e-reader CrossPoint di cui scansionare la libreria."
         }
       }
     }

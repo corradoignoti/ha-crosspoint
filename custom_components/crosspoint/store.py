@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from homeassistant.core import HomeAssistant
+from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers.storage import Store
 
 from .const import DOMAIN
@@ -51,6 +52,13 @@ class TransferStore:
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry_id}.transfers"
         )
         self._transfers: dict[str, Transfer] = {}
+        self._listeners: list[Callable[[], None]] = []
+
+    @callback
+    def async_add_listener(self, listener: Callable[[], None]) -> CALLBACK_TYPE:
+        """Call ``listener`` after every change; return a function to remove it."""
+        self._listeners.append(listener)
+        return lambda: self._listeners.remove(listener)
 
     @staticmethod
     def _key(kind: str, file: str) -> str:
@@ -68,6 +76,8 @@ class TransferStore:
         await self._store.async_save(
             {"transfers": [asdict(t) for t in self._transfers.values()]}
         )
+        for listener in list(self._listeners):
+            listener()
 
     def get(self, kind: str, file: str) -> Transfer | None:
         """Return the tracked transfer for a library file, if any."""

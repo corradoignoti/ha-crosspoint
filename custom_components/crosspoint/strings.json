@@ -96,6 +96,22 @@
     "sensor": {
       "rssi": {
         "name": "Wi-Fi signal"
+      },
+      "library_books": {
+        "name": "Library books",
+        "unit_of_measurement": "books"
+      },
+      "installed_books": {
+        "name": "Books on device",
+        "unit_of_measurement": "books",
+        "state_attributes": {
+          "modified": {
+            "name": "Modified since sent"
+          },
+          "missing_from_library": {
+            "name": "Missing from library"
+          }
+        }
       }
     }
   },
@@ -165,6 +181,16 @@
         "forget_missing": {
           "name": "Forget missing",
           "description": "Stop tracking the book if it is no longer on the device."
+        }
+      }
+    },
+    "rescan_library": {
+      "name": "Rescan library",
+      "description": "Scans the library folder now for new, changed or removed books and wallpapers.",
+      "fields": {
+        "config_entry_id": {
+          "name": "E-reader",
+          "description": "The CrossPoint e-reader whose library to scan."
         }
       }
     }

@@ -28,6 +28,7 @@ ATTR_FORGET_MISSING = "forget_missing"
 
 SERVICE_SEND_BOOK = "send_book"
 SERVICE_REMOVE_BOOK = "remove_book"
+SERVICE_RESCAN_LIBRARY = "rescan_library"
 
 _BASE = {
     vol.Required(ATTR_CONFIG_ENTRY_ID): cv.string,
@@ -39,6 +40,7 @@ SEND_BOOK_SCHEMA = vol.Schema(
 REMOVE_BOOK_SCHEMA = vol.Schema(
     {**_BASE, vol.Optional(ATTR_FORGET_MISSING, default=False): cv.boolean}
 )
+RESCAN_LIBRARY_SCHEMA = vol.Schema({vol.Required(ATTR_CONFIG_ENTRY_ID): cv.string})
 
 
 def _get_entry(hass: HomeAssistant, call: ServiceCall) -> CrossPointConfigEntry:
@@ -76,6 +78,10 @@ def async_setup_services(hass: HomeAssistant) -> None:
             call.data[ATTR_FILE], forget_missing=call.data[ATTR_FORGET_MISSING]
         )
 
+    async def rescan_library(call: ServiceCall) -> None:
+        entry = _get_entry(hass, call)
+        await entry.runtime_data.library.async_refresh()
+
     hass.services.async_register(
         DOMAIN,
         SERVICE_SEND_BOOK,
@@ -85,4 +91,10 @@ def async_setup_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(
         DOMAIN, SERVICE_REMOVE_BOOK, remove_book, schema=REMOVE_BOOK_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_RESCAN_LIBRARY,
+        rescan_library,
+        schema=RESCAN_LIBRARY_SCHEMA,
     )
