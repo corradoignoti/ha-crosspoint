@@ -22,8 +22,12 @@ def books(tmp_path):
 
 
 @pytest.fixture
-async def entry(setup_device_entry, books):
-    return await setup_device_entry()
+async def entry(hass, setup_device_entry, books):
+    entry = await setup_device_entry()
+    # Let the reconciliation started when the device comes online finish, so it
+    # does not race with the test body.
+    await hass.async_block_till_done(wait_background_tasks=True)
+    return entry
 
 
 async def _call(hass, service, entry, **data):
@@ -191,5 +195,5 @@ async def test_reconcile_runs_when_device_comes_online(
     device.dirs.add("/Books")
     device.files["/Books/Dune.epub"] = (books / "Dune.epub").read_bytes()
     entry = await setup_device_entry()
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
     assert entry.runtime_data.store.get("book", "Dune.epub") is not None
