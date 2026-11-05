@@ -48,3 +48,7 @@ uv pip install --python .venv -r requirements_test.txt
 ## License
 
 [MIT](LICENSE)
+
+The integration icon is the CrossPoint icon from
+[crosspoint-reader](https://github.com/crosspoint-reader/crosspoint-reader),
+© 2025 CrossPoint Reader organization, used under the MIT License.
