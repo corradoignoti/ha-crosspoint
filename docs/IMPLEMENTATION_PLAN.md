@@ -15,7 +15,7 @@ commit (one topic per commit).
 | 4     | Tracking store + book actions | Done        |
 | 5     | Wallpapers                    | Done        |
 | 6     | Sidebar panel (frontend)      | Done        |
-| 7     | Reading stats                 | Not started |
+| 7     | Reading stats                 | Done        |
 | 8     | Services, i18n, docs, release | Not started |
 
 Recommended order: 0, 1, 2, 4 (with one test book end to end), then 3, 5, 6, 7, 8.
@@ -264,21 +264,30 @@ tests/
   server: library, send with toast, transparency warning, offline state,
   Italian UI, phone width.
 
-### Phase 7 — Reading stats
+### Phase 7 — Reading stats (done)
 
-- Sync users configured as config subentries (or an options list). Store the
-  MD5 key, never the plain password, and never expose credentials to the
-  frontend.
-- Server URL configurable, default `https://sync.crosspointreader.com`.
-- Validate credentials with `/users/auth`.
-- One `StatsCoordinator` per user, polling every 15–30 minutes, plus the
-  `refresh_reading_stats` service. Independent of device reachability.
-- Sensors per user: total reading time, pages, books finished, sessions,
-  current streak, longest streak, reading minutes today. `dow` and `tod` as
-  attributes.
-- Lovelace card `custom:crosspoint-stats-card`, registered with
-  `add_extra_js_url`: single user or side-by-side comparison, reading the
-  sensor entities.
+- Each CrossPoint Sync user is a config subentry ("Add reading stats user")
+  with server URL (default `https://sync.crosspointreader.com`, self-hosted
+  works), username and the KOSync key (MD5 of the password). The password is
+  never stored and never reaches the frontend. Credentials are validated
+  with `/users/auth`; the reconfigure flow changes server or password.
+- `CrossPointSyncClient` (`api/sync.py`) sends `x-auth-user` / `x-auth-key`
+  and maps 401 and 429 to dedicated errors.
+- One `ReadingStatsCoordinator` per user polls `/api/v1/stats/summary`
+  every 30 minutes and on `refresh_reading_stats`. It never blocks the entry:
+  a failing sync server only makes that user's sensors unavailable. Rejected
+  credentials raise a repair issue, removed on the next success.
+- Sensors per user, on a "CrossPoint Sync <user>" service device: reading
+  time (with weekday and time-of-day minutes as attributes), pages read,
+  books finished, sessions, current and longest streak, last upload (with
+  the device names).
+- Lovelace card `custom:crosspoint-stats-card`, loaded on every dashboard:
+  no configuration needed (shows all users), optional `title` and `users`.
+  Several users are compared side by side with the best value highlighted;
+  values open the more-info dialog. Checked in a local Home Assistant with a
+  fake sync server, in English and Italian.
+- Adding or changing a user reloads the entry
+  (`async_schedule_reload`).
 
 ### Phase 8 — Services, i18n, docs, release
 
@@ -294,8 +303,9 @@ tests/
 ## Open questions
 
 - Encoding of `history_b64` and the element shape of `daily[]` in the Sync
-  stats: needed for "reading minutes today". Requires a real sample or the
-  server source.
+  stats: needed for daily reading minutes and a reading calendar in the
+  card. Requires a real sample or the server source. `/api/v1/stats/global`
+  is not used yet for the same reason.
 - Deleting files inside dot-folders (`/.sleep`, `/.sleep-overlay`): to be
   tested on real firmware, since dotfiles are hidden from listings.
 - Values of `/api/status` `device` for each model, to make model detection
@@ -307,5 +317,5 @@ tests/
 
 ## Estimate
 
-About 10–13 working days in total, of which phases 0–6 (about 8.5 days) are
+About 10–13 working days in total, of which phases 0–7 (about 10.5 days) are
 done.
