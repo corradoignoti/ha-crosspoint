@@ -1,0 +1,109 @@
+// User-facing strings of the panel. Add a language by adding a dictionary.
+
+const STRINGS = {
+  en: {
+    title: "CrossPoint",
+    online: "Online",
+    offline: "Offline",
+    offline_hint:
+      "The e-reader is not reachable. Put it in File Transfer mode to send or remove files.",
+    no_entries: "No CrossPoint e-reader is configured.",
+    loading: "Loading…",
+    rescan: "Rescan library",
+    search: "Search",
+    tab_books: "Books",
+    tab_wallpapers: "Wallpapers",
+    empty_books: "No books. Copy EPUB files into the books folder of the library.",
+    empty_wallpapers:
+      "No wallpapers. Copy images into the wallpapers folder of the library.",
+    status_not_installed: "Not on device",
+    status_installed: "On device",
+    status_modified: "Modified since sent",
+    status_missing_from_library: "Missing from library",
+    send: "Send",
+    resend: "Send again",
+    remove: "Remove",
+    cancel: "Cancel",
+    mode_normal: "Normal",
+    mode_transparent: "Transparent",
+    mode: "Mode",
+    sent_as: "Sent as {mode}",
+    unknown_author: "Unknown author",
+    sending: "Sending… {percent}%",
+    confirm_remove_title: "Remove from the e-reader?",
+    confirm_remove_text: "{name} will be deleted from the e-reader.",
+    confirm_overwrite_title: "Replace the file on the e-reader?",
+    confirm_overwrite_text:
+      "{name} already exists on the e-reader and was not sent by Home Assistant. Replace it?",
+    replace: "Replace",
+    confirm_forget_title: "File not found on the e-reader",
+    confirm_forget_text:
+      "{name} is no longer on the e-reader. Stop tracking it?",
+    forget: "Stop tracking",
+    confirm_opaque_title: "Image without transparency",
+    confirm_opaque_text:
+      "{name} has no transparent pixels: as a transparent overlay it will cover the whole screen. Send it anyway?",
+    send_anyway: "Send anyway",
+    done_sent: "{name} sent to the e-reader.",
+    done_removed: "{name} removed from the e-reader.",
+    device_info: "{model} · {host}",
+    firmware: "firmware {version}",
+  },
+  it: {
+    title: "CrossPoint",
+    online: "Online",
+    offline: "Offline",
+    offline_hint:
+      "L'e-reader non è raggiungibile. Mettilo in modalità File Transfer per inviare o rimuovere file.",
+    no_entries: "Nessun e-reader CrossPoint configurato.",
+    loading: "Caricamento…",
+    rescan: "Riscansiona libreria",
+    search: "Cerca",
+    tab_books: "Libri",
+    tab_wallpapers: "Sfondi",
+    empty_books: "Nessun libro. Copia dei file EPUB nella cartella libri della libreria.",
+    empty_wallpapers:
+      "Nessuno sfondo. Copia delle immagini nella cartella sfondi della libreria.",
+    status_not_installed: "Non sul dispositivo",
+    status_installed: "Sul dispositivo",
+    status_modified: "Modificato dopo l'invio",
+    status_missing_from_library: "Mancante dalla libreria",
+    send: "Invia",
+    resend: "Invia di nuovo",
+    remove: "Rimuovi",
+    cancel: "Annulla",
+    mode_normal: "Normale",
+    mode_transparent: "Trasparente",
+    mode: "Modalità",
+    sent_as: "Inviato come {mode}",
+    unknown_author: "Autore sconosciuto",
+    sending: "Invio… {percent}%",
+    confirm_remove_title: "Rimuovere dall'e-reader?",
+    confirm_remove_text: "{name} verrà eliminato dall'e-reader.",
+    confirm_overwrite_title: "Sostituire il file sull'e-reader?",
+    confirm_overwrite_text:
+      "{name} esiste già sull'e-reader e non è stato inviato da Home Assistant. Sostituirlo?",
+    replace: "Sostituisci",
+    confirm_forget_title: "File non trovato sull'e-reader",
+    confirm_forget_text:
+      "{name} non è più sull'e-reader. Smettere di tracciarlo?",
+    forget: "Smetti di tracciare",
+    confirm_opaque_title: "Immagine senza trasparenza",
+    confirm_opaque_text:
+      "{name} non ha pixel trasparenti: come overlay trasparente coprirà tutto lo schermo. Inviarla comunque?",
+    send_anyway: "Invia comunque",
+    done_sent: "{name} inviato all'e-reader.",
+    done_removed: "{name} rimosso dall'e-reader.",
+    device_info: "{model} · {host}",
+    firmware: "firmware {version}",
+  },
+};
+
+export function makeLocalize(hass) {
+  const language = (hass?.locale?.language || hass?.language || "en").split("-")[0];
+  const strings = STRINGS[language] || STRINGS.en;
+  return (key, values = {}) => {
+    const template = strings[key] ?? STRINGS.en[key] ?? key;
+    return template.replace(/\{(\w+)\}/g, (_, name) => String(values[name] ?? ""));
+  };
+}

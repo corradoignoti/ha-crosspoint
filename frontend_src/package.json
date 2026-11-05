@@ -1,0 +1,18 @@
+{
+  "name": "crosspoint-panel",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sidebar panel of the CrossPoint Home Assistant integration",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/crosspoint-panel.js --bundle --format=esm --minify --target=es2021 --legal-comments=none --outfile=../custom_components/crosspoint/frontend/crosspoint-panel.js",
+    "watch": "npm run build -- --watch"
+  },
+  "dependencies": {
+    "lit": "3.3.3"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}
