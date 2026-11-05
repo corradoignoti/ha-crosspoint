@@ -12,7 +12,6 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.typing import ConfigType
 
 from .api.device import CrossPointDeviceClient
-from .books import BookManager
 from .const import (
     CONF_MODEL,
     CONF_WS_PORT,
@@ -25,6 +24,7 @@ from .coordinator import CrossPointDeviceCoordinator
 from .library import LibraryCoordinator, async_remove_library_cache
 from .services import async_setup_services
 from .store import TransferStore
+from .transfers import BookManager
 from .views import CrossPointCoverView
 
 PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR]
