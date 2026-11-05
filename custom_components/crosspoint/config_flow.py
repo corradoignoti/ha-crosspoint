@@ -134,21 +134,31 @@ async def _async_probe(hass: HomeAssistant, host: str, ws_port: int) -> dict | N
         return None
 
 
-def _validate_library(hass: HomeAssistant, user_input: dict[str, Any]) -> str | None:
-    """Validate the library folder and create its subfolders (runs in executor).
+def _validate_library(
+    hass: HomeAssistant, user_input: dict[str, Any], create: bool = False
+) -> str | None:
+    """Validate the library folder (runs in executor).
 
-    Return an error key, or None when valid.
+    With ``create`` set (first setup only) the root and its subfolders are
+    created when missing. Return an error key, or None when valid.
     """
     root = os.path.abspath(user_input[CONF_LIBRARY_PATH])
     if not hass.config.is_allowed_path(root):
         return "path_not_allowed"
-    if not os.path.isdir(root):
-        return "path_not_found"
+    subs = []
     for key in (CONF_BOOKS_DIR, CONF_WALLPAPERS_DIR):
         sub = user_input[key].strip().strip("/")
         if not sub or ".." in sub.split("/"):
             return "invalid_subfolder"
-        os.makedirs(os.path.join(root, sub), exist_ok=True)
+        subs.append(sub)
+    if create:
+        try:
+            for sub in subs:
+                os.makedirs(os.path.join(root, sub), exist_ok=True)
+        except OSError:
+            return "path_not_writable"
+    elif not os.path.isdir(root):
+        return "path_not_found"
     return None
 
 
@@ -283,7 +293,7 @@ class CrossPointConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         if user_input is not None:
             error = await self.hass.async_add_executor_job(
-                _validate_library, self.hass, user_input
+                _validate_library, self.hass, user_input, True
             )
             if error is None:
                 return self.async_create_entry(

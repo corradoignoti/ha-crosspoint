@@ -138,14 +138,28 @@ async def test_library_errors(hass: HomeAssistant, library, tmp_path_factory):
         )
         assert result["errors"] == {"base": "path_not_allowed"}
         result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], _library_input(library / "missing")
-        )
-        assert result["errors"] == {"base": "path_not_found"}
-        result = await hass.config_entries.flow.async_configure(
             result["flow_id"],
             {**_library_input(library), CONF_BOOKS_DIR: "../escape"},
         )
         assert result["errors"] == {"base": "invalid_subfolder"}
+
+
+async def test_first_setup_creates_missing_root(hass: HomeAssistant, library):
+    root = library / "new" / "root"
+    p1, p2 = _patch(status={})
+    with p1, p2:
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {"host": "crosspoint.local", CONF_MODEL: "xteink_x4"}
+        )
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], _library_input(root)
+        )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert (root / "books").is_dir()
+    assert (root / "wallpapers").is_dir()
 
 
 async def test_already_configured(hass: HomeAssistant, library):
@@ -211,3 +225,29 @@ async def test_reconfigure(hass: HomeAssistant, library):
     assert entry.data["host"] == "10.0.0.5"
     assert entry.data[CONF_MODEL] == "cross_share"
     assert entry.unique_id == "10.0.0.5"
+
+
+async def test_reconfigure_does_not_create_folders(hass: HomeAssistant, library):
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id="crosspoint.local",
+        data={
+            "host": "crosspoint.local",
+            CONF_MODEL: "xteink_x4",
+            CONF_WS_PORT: 81,
+            **_library_input(library),
+        },
+    )
+    entry.add_to_hass(hass)
+    missing = library / "missing"
+    result = await entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {
+            "host": "crosspoint.local",
+            CONF_MODEL: "xteink_x4",
+            **_library_input(missing),
+        },
+    )
+    assert result["errors"] == {"base": "path_not_found"}
+    assert not missing.exists()

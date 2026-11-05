@@ -49,7 +49,8 @@
       "cannot_connect_confirm": "The e-reader is not reachable right now. Check the address, or submit again to save it anyway (the reader may simply not be in File Transfer mode).",
       "path_not_allowed": "Home Assistant is not allowed to access this folder. Use a folder under /media or add it to allowlist_external_dirs.",
       "path_not_found": "The folder does not exist.",
-      "invalid_subfolder": "Invalid subfolder name."
+      "invalid_subfolder": "Invalid subfolder name.",
+      "path_not_writable": "The folder cannot be created."
     },
     "abort": {
       "already_configured": "This e-reader is already configured.",

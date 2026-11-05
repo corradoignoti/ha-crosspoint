@@ -49,7 +49,8 @@
       "cannot_connect_confirm": "L'e-reader non è raggiungibile ora. Controlla l'indirizzo, oppure invia di nuovo per salvarlo comunque (il reader potrebbe semplicemente non essere in modalità File Transfer).",
       "path_not_allowed": "Home Assistant non può accedere a questa cartella. Usa una cartella sotto /media o aggiungila ad allowlist_external_dirs.",
       "path_not_found": "La cartella non esiste.",
-      "invalid_subfolder": "Nome della sottocartella non valido."
+      "invalid_subfolder": "Nome della sottocartella non valido.",
+      "path_not_writable": "Impossibile creare la cartella."
     },
     "abort": {
       "already_configured": "Questo e-reader è già configurato.",
