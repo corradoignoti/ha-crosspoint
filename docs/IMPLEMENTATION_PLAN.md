@@ -289,7 +289,7 @@ tests/
 - Adding or changing a user reloads the entry
   (`async_schedule_reload`).
 
-### Phase 8 — Services, i18n, docs, release
+### Phase 8 — Services, i18n, docs, release (done)
 
 - `services.yaml` with selectors for `send_book`, `remove_book`,
   `send_wallpaper` (mode `normal` / `transparent`), `rescan_library`,
@@ -317,5 +317,4 @@ tests/
 
 ## Estimate
 
-About 10–13 working days in total, of which phases 0–7 (about 10.5 days) are
-done.
+About 10–13 working days in total; all phases (0–8) are done.
