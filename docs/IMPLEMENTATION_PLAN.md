@@ -12,7 +12,7 @@ commit (one topic per commit).
 | 1     | Device client + config flow   | Done        |
 | 2     | Device reachability           | Done        |
 | 3     | Library scan                  | Not started |
-| 4     | Tracking store + book actions | Not started |
+| 4     | Tracking store + book actions | Done        |
 | 5     | Wallpapers                    | Not started |
 | 6     | Sidebar panel (frontend)      | Not started |
 | 7     | Reading stats                 | Not started |
@@ -171,20 +171,27 @@ tests/
 - Book state: `not_installed`, `installed`, or `modified` (hash differs from
   the tracked one).
 
-### Phase 4 — Tracking store and book operations
+### Phase 4 — Tracking store and book operations (done)
 
-- `Store(version=1)` keyed by library-relative path:
-  `{sha256, sent_at, device_path, kind}` where `kind` is `book` or
-  `wallpaper`.
-- `send_book`: guard online, upload, then write the store only after `DONE` or
-  HTTP 200. A modified book is re-sent with overwrite.
-- `remove_book`: guard online, `POST /delete`, then remove the store entry
-  only after HTTP 200. If the device reports the file missing, offer to drop
-  the stale entry.
-- Destination folder on the device is configurable, default `/Books`, created
-  with `ensure_dir` when needed.
-- Upload progress is published as `crosspoint_upload_progress` events for the
-  panel.
+- `TransferStore` (Home Assistant storage, one file per config entry) records
+  `{kind, file, sha256, size, sent_at, device_path}`, keyed by kind and
+  library-relative path. Removing the config entry deletes it.
+- `BookManager` serializes operations per entry:
+  - `send_book`: validates the path (no escape from the books folder), checks
+    the device is online, hashes the file, creates the destination folder,
+    uploads, and records the transfer only after the device confirms.
+    A tracked book is replaced automatically (HTTP overwrite); an untracked
+    file with the same name on the device is refused unless `overwrite` is
+    set. Returns `device_path` and `sha256` as the service response.
+  - `remove_book`: only tracked books can be removed. The entry is forgotten
+    only after the device confirms the deletion. If the device listing shows
+    the file is already gone, the call fails unless `forget_missing` is set.
+  - Connection failures mark the device offline right away.
+- Destination folder on the device is an option, default `/Books`.
+- Upload progress is published as `crosspoint_upload_progress` events
+  (`entry_id`, `kind`, `file`, `received`, `total`), at most every 256 KB.
+- Services take a `config_entry_id`, are registered in `async_setup`, and
+  raise translated errors.
 
 ### Phase 5 — Wallpapers
 
@@ -257,5 +264,5 @@ tests/
 
 ## Estimate
 
-About 10–13 working days in total, of which phases 0–2 (about 2.5 days) are
-done.
+About 10–13 working days in total, of which phases 0–2 and 4 (about 3.5 days)
+are done.
