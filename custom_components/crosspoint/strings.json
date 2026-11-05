@@ -118,6 +118,43 @@
             "name": "Missing from library"
           }
         }
+      },
+      "reading_time": {
+        "name": "Reading time",
+        "state_attributes": {
+          "weekday_minutes": {
+            "name": "Minutes by weekday"
+          },
+          "time_of_day_minutes": {
+            "name": "Minutes by time of day"
+          }
+        }
+      },
+      "pages_read": {
+        "name": "Pages read",
+        "unit_of_measurement": "pages"
+      },
+      "books_finished": {
+        "name": "Books finished",
+        "unit_of_measurement": "books"
+      },
+      "reading_sessions": {
+        "name": "Reading sessions",
+        "unit_of_measurement": "sessions"
+      },
+      "current_streak": {
+        "name": "Current streak"
+      },
+      "longest_streak": {
+        "name": "Longest streak"
+      },
+      "last_upload": {
+        "name": "Last upload",
+        "state_attributes": {
+          "devices": {
+            "name": "Devices"
+          }
+        }
       }
     }
   },
@@ -157,6 +194,15 @@
     },
     "invalid_image": {
       "message": "The image {file} cannot be read."
+    },
+    "sync_auth_failed": {
+      "message": "CrossPoint Sync rejected the credentials of {username}."
+    },
+    "sync_rate_limited": {
+      "message": "CrossPoint Sync is rate limiting requests; retrying later."
+    },
+    "sync_unavailable": {
+      "message": "Cannot read reading statistics: {error}"
     }
   },
   "services": {
@@ -245,6 +291,64 @@
           "description": "Stop tracking the wallpaper if it is no longer on the device."
         }
       }
+    },
+    "refresh_reading_stats": {
+      "name": "Refresh reading stats",
+      "description": "Fetches the reading statistics of every configured user from CrossPoint Sync now.",
+      "fields": {
+        "config_entry_id": {
+          "name": "E-reader",
+          "description": "The CrossPoint configuration whose reading stats to refresh."
+        }
+      }
+    }
+  },
+  "config_subentries": {
+    "sync_user": {
+      "initiate_flow": {
+        "user": "Add reading stats user"
+      },
+      "entry_type": "Reading stats user",
+      "step": {
+        "user": {
+          "title": "CrossPoint Sync user",
+          "description": "Reading statistics are read from a CrossPoint Sync (KOSync) server. Only the hashed password is stored.",
+          "data": {
+            "url": "Server URL",
+            "username": "Username",
+            "password": "Password"
+          },
+          "data_description": {
+            "url": "Default https://sync.crosspointreader.com; self-hosted servers work too."
+          }
+        },
+        "reconfigure": {
+          "title": "Change CrossPoint Sync user {username}",
+          "data": {
+            "url": "Server URL",
+            "password": "Password"
+          },
+          "data_description": {
+            "url": "Default https://sync.crosspointreader.com; self-hosted servers work too."
+          }
+        }
+      },
+      "error": {
+        "invalid_auth": "Invalid username or password.",
+        "rate_limited": "Too many attempts. Wait a few minutes and try again.",
+        "cannot_connect_sync": "Cannot reach the server.",
+        "invalid_sync_server": "This does not look like a CrossPoint Sync server."
+      },
+      "abort": {
+        "already_configured": "This user is already configured.",
+        "reconfigure_successful": "Reconfiguration was successful."
+      }
+    }
+  },
+  "issues": {
+    "sync_auth_failed": {
+      "title": "CrossPoint Sync login failed for {username}",
+      "description": "The server {url} rejected the credentials of {username}, so reading statistics are not updated. Open the CrossPoint integration and reconfigure this reading stats user with the current password."
     }
   }
 }

@@ -11,7 +11,9 @@ from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
+    ConfigSubentryFlow,
     OptionsFlow,
+    SubentryFlowResult,
 )
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant, callback
@@ -25,16 +27,28 @@ from homeassistant.helpers.selector import (
     SelectSelectorConfig,
     SelectSelectorMode,
     TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
 )
 
 from .api.device import CrossPointDeviceClient
-from .api.errors import CrossPointError
+from .api.errors import CrossPointConnectionError, CrossPointError
+from .api.sync import (
+    CrossPointSyncAuthError,
+    CrossPointSyncClient,
+    CrossPointSyncRateLimitError,
+    normalize_url,
+    password_key,
+)
 from .const import (
     CONF_BOOKS_DIR,
     CONF_DEVICE_BOOKS_DIR,
     CONF_LIBRARY_PATH,
     CONF_MODEL,
     CONF_SCAN_INTERVAL,
+    CONF_SYNC_KEY,
+    CONF_SYNC_URL,
+    CONF_SYNC_USERNAME,
     CONF_WALLPAPERS_DIR,
     CONF_WS_PORT,
     DEFAULT_BOOKS_DIR,
@@ -43,10 +57,12 @@ from .const import (
     DEFAULT_LIBRARY_PATH,
     DEFAULT_MODEL,
     DEFAULT_SCAN_INTERVAL_MIN,
+    DEFAULT_SYNC_URL,
     DEFAULT_WALLPAPERS_DIR,
     DEFAULT_WS_PORT,
     DOMAIN,
     MODELS,
+    SUBENTRY_SYNC_USER,
 )
 from .discovery import DiscoveredDevice, async_discover
 
@@ -159,6 +175,14 @@ class CrossPointConfigFlow(ConfigFlow, domain=DOMAIN):
     def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
         """Return the options flow handler."""
         return CrossPointOptionsFlow()
+
+    @classmethod
+    @callback
+    def async_get_supported_subentry_types(
+        cls, config_entry: ConfigEntry
+    ) -> dict[str, type[ConfigSubentryFlow]]:
+        """Reading stats users are added as subentries."""
+        return {SUBENTRY_SYNC_USER: SyncUserSubentryFlow}
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -364,4 +388,122 @@ class CrossPointOptionsFlow(OptionsFlow):
                     ): TextSelector(),
                 }
             ),
+        )
+
+
+def _sync_schema(defaults: dict[str, Any], *, with_username: bool) -> vol.Schema:
+    fields: dict[Any, Any] = {
+        vol.Required(
+            CONF_SYNC_URL, default=defaults.get(CONF_SYNC_URL, DEFAULT_SYNC_URL)
+        ): TextSelector(TextSelectorConfig(type=TextSelectorType.URL)),
+    }
+    if with_username:
+        fields[
+            vol.Required(CONF_SYNC_USERNAME, default=defaults.get(CONF_SYNC_USERNAME))
+        ] = TextSelector(TextSelectorConfig(autocomplete="username"))
+    fields[vol.Required("password")] = TextSelector(
+        TextSelectorConfig(
+            type=TextSelectorType.PASSWORD, autocomplete="current-password"
+        )
+    )
+    return vol.Schema(fields)
+
+
+async def _async_validate_sync(
+    hass: HomeAssistant, url: str, username: str, key: str
+) -> str | None:
+    """Return an error key, or None if the credentials work."""
+    client = CrossPointSyncClient(async_get_clientsession(hass), url, username, key)
+    try:
+        await client.async_authorize()
+    except CrossPointSyncAuthError:
+        return "invalid_auth"
+    except CrossPointSyncRateLimitError:
+        return "rate_limited"
+    except CrossPointConnectionError:
+        return "cannot_connect_sync"
+    except CrossPointError:
+        return "invalid_sync_server"
+    return None
+
+
+class SyncUserSubentryFlow(ConfigSubentryFlow):
+    """Add or change a CrossPoint Sync user for reading statistics.
+
+    Only the KOSync key (MD5 of the password) is stored, never the password.
+    """
+
+    def _duplicate(self, url: str, username: str, ignore: str | None = None) -> bool:
+        return any(
+            sub.subentry_type == SUBENTRY_SYNC_USER
+            and sub.subentry_id != ignore
+            and normalize_url(sub.data[CONF_SYNC_URL]) == url
+            and sub.data[CONF_SYNC_USERNAME] == username
+            for sub in self._get_entry().subentries.values()
+        )
+
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Add a user."""
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            url = normalize_url(user_input[CONF_SYNC_URL])
+            username = user_input[CONF_SYNC_USERNAME].strip()
+            key = password_key(user_input["password"])
+            if self._duplicate(url, username):
+                return self.async_abort(reason="already_configured")
+            if (
+                error := await _async_validate_sync(self.hass, url, username, key)
+            ) is None:
+                return self.async_create_entry(
+                    title=username,
+                    data={
+                        CONF_SYNC_URL: url,
+                        CONF_SYNC_USERNAME: username,
+                        CONF_SYNC_KEY: key,
+                    },
+                    unique_id=f"{url}|{username}",
+                )
+            errors["base"] = error
+        defaults = {k: v for k, v in (user_input or {}).items() if k != "password"}
+        return self.async_show_form(
+            step_id="user",
+            data_schema=_sync_schema(defaults, with_username=True),
+            errors=errors,
+        )
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Change the server or the password of a user."""
+        subentry = self._get_reconfigure_subentry()
+        username = subentry.data[CONF_SYNC_USERNAME]
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            url = normalize_url(user_input[CONF_SYNC_URL])
+            key = password_key(user_input["password"])
+            if self._duplicate(url, username, ignore=subentry.subentry_id):
+                return self.async_abort(reason="already_configured")
+            if (
+                error := await _async_validate_sync(self.hass, url, username, key)
+            ) is None:
+                return self.async_update_and_abort(
+                    self._get_entry(),
+                    subentry,
+                    data={
+                        CONF_SYNC_URL: url,
+                        CONF_SYNC_USERNAME: username,
+                        CONF_SYNC_KEY: key,
+                    },
+                    unique_id=f"{url}|{username}",
+                )
+            errors["base"] = error
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=_sync_schema(
+                {CONF_SYNC_URL: subentry.data[CONF_SYNC_URL]}, with_username=False
+            ),
+            description_placeholders={"username": username},
+            errors=errors,
         )

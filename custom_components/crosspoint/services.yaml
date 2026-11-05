@@ -81,3 +81,11 @@ remove_wallpaper:
       default: false
       selector:
         boolean:
+
+refresh_reading_stats:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: crosspoint

@@ -118,6 +118,43 @@
             "name": "Mancanti dalla libreria"
           }
         }
+      },
+      "reading_time": {
+        "name": "Tempo di lettura",
+        "state_attributes": {
+          "weekday_minutes": {
+            "name": "Minuti per giorno della settimana"
+          },
+          "time_of_day_minutes": {
+            "name": "Minuti per fascia oraria"
+          }
+        }
+      },
+      "pages_read": {
+        "name": "Pagine lette",
+        "unit_of_measurement": "pagine"
+      },
+      "books_finished": {
+        "name": "Libri finiti",
+        "unit_of_measurement": "libri"
+      },
+      "reading_sessions": {
+        "name": "Sessioni di lettura",
+        "unit_of_measurement": "sessioni"
+      },
+      "current_streak": {
+        "name": "Serie attuale"
+      },
+      "longest_streak": {
+        "name": "Serie più lunga"
+      },
+      "last_upload": {
+        "name": "Ultimo caricamento",
+        "state_attributes": {
+          "devices": {
+            "name": "Dispositivi"
+          }
+        }
       }
     }
   },
@@ -157,6 +194,15 @@
     },
     "invalid_image": {
       "message": "Impossibile leggere l'immagine {file}."
+    },
+    "sync_auth_failed": {
+      "message": "CrossPoint Sync ha rifiutato le credenziali di {username}."
+    },
+    "sync_rate_limited": {
+      "message": "CrossPoint Sync sta limitando le richieste; nuovo tentativo più tardi."
+    },
+    "sync_unavailable": {
+      "message": "Impossibile leggere le statistiche di lettura: {error}"
     }
   },
   "services": {
@@ -245,6 +291,64 @@
           "description": "Smette di tracciare lo sfondo se non è più sul dispositivo."
         }
       }
+    },
+    "refresh_reading_stats": {
+      "name": "Aggiorna statistiche di lettura",
+      "description": "Legge subito da CrossPoint Sync le statistiche di lettura di tutti gli utenti configurati.",
+      "fields": {
+        "config_entry_id": {
+          "name": "E-reader",
+          "description": "La configurazione CrossPoint di cui aggiornare le statistiche."
+        }
+      }
+    }
+  },
+  "config_subentries": {
+    "sync_user": {
+      "initiate_flow": {
+        "user": "Aggiungi utente statistiche"
+      },
+      "entry_type": "Utente statistiche di lettura",
+      "step": {
+        "user": {
+          "title": "Utente CrossPoint Sync",
+          "description": "Le statistiche di lettura vengono lette da un server CrossPoint Sync (KOSync). Viene salvata solo la password cifrata con hash.",
+          "data": {
+            "url": "URL del server",
+            "username": "Nome utente",
+            "password": "Password"
+          },
+          "data_description": {
+            "url": "Predefinito https://sync.crosspointreader.com; funzionano anche i server self-hosted."
+          }
+        },
+        "reconfigure": {
+          "title": "Modifica utente CrossPoint Sync {username}",
+          "data": {
+            "url": "URL del server",
+            "password": "Password"
+          },
+          "data_description": {
+            "url": "Predefinito https://sync.crosspointreader.com; funzionano anche i server self-hosted."
+          }
+        }
+      },
+      "error": {
+        "invalid_auth": "Nome utente o password non validi.",
+        "rate_limited": "Troppi tentativi. Attendi qualche minuto e riprova.",
+        "cannot_connect_sync": "Impossibile raggiungere il server.",
+        "invalid_sync_server": "Questo non sembra un server CrossPoint Sync."
+      },
+      "abort": {
+        "already_configured": "Questo utente è già configurato.",
+        "reconfigure_successful": "Riconfigurazione completata."
+      }
+    }
+  },
+  "issues": {
+    "sync_auth_failed": {
+      "title": "Accesso a CrossPoint Sync non riuscito per {username}",
+      "description": "Il server {url} ha rifiutato le credenziali di {username}, quindi le statistiche di lettura non vengono aggiornate. Apri l'integrazione CrossPoint e riconfigura questo utente statistiche con la password attuale."
     }
   }
 }

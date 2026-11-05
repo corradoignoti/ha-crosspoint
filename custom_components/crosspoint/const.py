@@ -14,6 +14,12 @@ CONF_BOOKS_DIR: Final = "books_dir"
 CONF_WALLPAPERS_DIR: Final = "wallpapers_dir"
 CONF_SCAN_INTERVAL: Final = "scan_interval"
 CONF_DEVICE_BOOKS_DIR: Final = "device_books_dir"
+CONF_SYNC_URL: Final = "url"
+CONF_SYNC_USERNAME: Final = "username"
+CONF_SYNC_KEY: Final = "key"
+
+SUBENTRY_SYNC_USER: Final = "sync_user"
+DEFAULT_SYNC_URL: Final = "https://sync.crosspointreader.com"
 
 DEFAULT_HOST: Final = "crosspoint.local"
 DEFAULT_HTTP_PORT: Final = 80

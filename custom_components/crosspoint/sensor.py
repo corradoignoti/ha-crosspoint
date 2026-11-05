@@ -15,6 +15,7 @@ from . import CrossPointConfigEntry
 from .const import KIND_BOOK
 from .entity import CrossPointDeviceEntity, CrossPointLibraryEntity
 from .library import STATUS_INSTALLED, STATUS_MISSING, STATUS_MODIFIED
+from .stats_entity import STATS_SENSORS, ReadingStatsSensor
 
 PARALLEL_UPDATES = 0
 
@@ -33,6 +34,11 @@ async def async_setup_entry(
             CrossPointInstalledBooksSensor(runtime.library),
         ]
     )
+    for subentry_id, coordinator in runtime.stats.items():
+        async_add_entities(
+            [ReadingStatsSensor(coordinator, desc) for desc in STATS_SENSORS],
+            config_subentry_id=subentry_id,
+        )
 
 
 class CrossPointSignalSensor(CrossPointDeviceEntity, SensorEntity):

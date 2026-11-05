@@ -32,6 +32,7 @@ ATTR_FORCE = "force"
 SERVICE_SEND_BOOK = "send_book"
 SERVICE_REMOVE_BOOK = "remove_book"
 SERVICE_RESCAN_LIBRARY = "rescan_library"
+SERVICE_REFRESH_READING_STATS = "refresh_reading_stats"
 SERVICE_SEND_WALLPAPER = "send_wallpaper"
 SERVICE_REMOVE_WALLPAPER = "remove_wallpaper"
 
@@ -109,6 +110,11 @@ def async_setup_services(hass: HomeAssistant) -> None:
             call.data[ATTR_FILE], forget_missing=call.data[ATTR_FORGET_MISSING]
         )
 
+    async def refresh_reading_stats(call: ServiceCall) -> None:
+        entry = _get_entry(hass, call)
+        for coordinator in entry.runtime_data.stats.values():
+            await coordinator.async_refresh()
+
     async def rescan_library(call: ServiceCall) -> None:
         entry = _get_entry(hass, call)
         await entry.runtime_data.library.async_refresh()
@@ -141,4 +147,10 @@ def async_setup_services(hass: HomeAssistant) -> None:
         SERVICE_REMOVE_WALLPAPER,
         remove_wallpaper,
         schema=REMOVE_BOOK_SCHEMA,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_REFRESH_READING_STATS,
+        refresh_reading_stats,
+        schema=RESCAN_LIBRARY_SCHEMA,
     )

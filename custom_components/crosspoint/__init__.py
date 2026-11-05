@@ -18,12 +18,14 @@ from .const import (
     DEFAULT_WS_PORT,
     DOMAIN,
     MODELS,
+    SUBENTRY_SYNC_USER,
     DeviceModel,
 )
 from .coordinator import CrossPointDeviceCoordinator
 from .library import LibraryCoordinator, async_remove_library_cache
 from .panel import async_register_panel, async_unregister_panel
 from .services import async_setup_services
+from .stats import ReadingStatsCoordinator
 from .store import TransferStore
 from .transfers import BookManager, WallpaperManager
 from .views import CrossPointCoverView
@@ -44,6 +46,7 @@ class CrossPointRuntimeData:
     books: BookManager
     wallpapers: WallpaperManager
     library: LibraryCoordinator
+    stats: dict[str, ReadingStatsCoordinator]
 
 
 type CrossPointConfigEntry = ConfigEntry[CrossPointRuntimeData]
@@ -75,10 +78,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: CrossPointConfigEntry) -
         books=BookManager(hass, entry, coordinator, store),
         wallpapers=WallpaperManager(hass, entry, coordinator, store),
         library=LibraryCoordinator(hass, entry, store),
+        stats={
+            subentry_id: ReadingStatsCoordinator(hass, entry, subentry)
+            for subentry_id, subentry in entry.subentries.items()
+            if subentry.subentry_type == SUBENTRY_SYNC_USER
+        },
     )
     # An offline reader is a normal state, so the first refresh never fails.
     await coordinator.async_config_entry_first_refresh()
     await entry.runtime_data.library.async_config_entry_first_refresh()
+    # Reading stats are independent: a sync server failure must not block the
+    # e-reader, so their entities just start unavailable.
+    for stats in entry.runtime_data.stats.values():
+        await stats.async_refresh()
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     await async_register_panel(hass)
@@ -109,5 +121,5 @@ async def async_remove_entry(hass: HomeAssistant, entry: CrossPointConfigEntry) 
 async def _async_update_listener(
     hass: HomeAssistant, entry: CrossPointConfigEntry
 ) -> None:
-    """Reload the entry when its options change."""
-    await hass.config_entries.async_reload(entry.entry_id)
+    """Reload the entry when its options or reading stats users change."""
+    hass.config_entries.async_schedule_reload(entry.entry_id)
