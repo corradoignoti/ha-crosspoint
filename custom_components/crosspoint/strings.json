@@ -1,0 +1,83 @@
+{
+  "config": {
+    "step": {
+      "pick": {
+        "title": "Select your CrossPoint",
+        "description": "These CrossPoint e-readers answered on the local network. Choose one, or enter the address manually.",
+        "data": {
+          "host": "Device"
+        }
+      },
+      "device": {
+        "title": "CrossPoint e-reader",
+        "description": "The e-reader web server runs only while the reader is in File Transfer (or Calibre Wireless) mode. It has no authentication: use it only on a trusted private network.",
+        "data": {
+          "host": "Address",
+          "model": "Model"
+        },
+        "data_description": {
+          "host": "IP address or hostname, for example crosspoint.local.",
+          "model": "Determines the screen resolution used for wallpapers."
+        }
+      },
+      "library": {
+        "title": "Library folder",
+        "description": "Books and wallpapers enter the library only through this folder, for example by copying them over Samba.",
+        "data": {
+          "library_path": "Library folder",
+          "books_dir": "Books subfolder",
+          "wallpapers_dir": "Wallpapers subfolder"
+        },
+        "data_description": {
+          "library_path": "Absolute path on the Home Assistant host, for example /media/crosspoint.",
+          "books_dir": "Created if missing.",
+          "wallpapers_dir": "Created if missing."
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure CrossPoint",
+        "data": {
+          "host": "[%key:component::crosspoint::config::step::device::data::host%]",
+          "model": "[%key:component::crosspoint::config::step::device::data::model%]",
+          "library_path": "[%key:component::crosspoint::config::step::library::data::library_path%]",
+          "books_dir": "[%key:component::crosspoint::config::step::library::data::books_dir%]",
+          "wallpapers_dir": "[%key:component::crosspoint::config::step::library::data::wallpapers_dir%]"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect_confirm": "The e-reader is not reachable right now. Check the address, or submit again to save it anyway (the reader may simply not be in File Transfer mode).",
+      "path_not_allowed": "Home Assistant is not allowed to access this folder. Use a folder under /media or add it to allowlist_external_dirs.",
+      "path_not_found": "The folder does not exist.",
+      "invalid_subfolder": "Invalid subfolder name."
+    },
+    "abort": {
+      "already_configured": "This e-reader is already configured.",
+      "reconfigure_successful": "Reconfiguration was successful."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "CrossPoint options",
+        "data": {
+          "scan_interval": "Library scan interval"
+        }
+      }
+    }
+  },
+  "selector": {
+    "model": {
+      "options": {
+        "xteink_x4": "Xteink X4 (480 × 800)",
+        "xteink_x3": "Xteink X3 (528 × 792)",
+        "cross_share": "Cross-Share (480 × 800)"
+      }
+    },
+    "pick": {
+      "options": {
+        "manual": "Enter address manually"
+      }
+    }
+  }
+}

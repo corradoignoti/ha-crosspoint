@@ -1,0 +1,83 @@
+{
+  "config": {
+    "step": {
+      "pick": {
+        "title": "Seleziona il tuo CrossPoint",
+        "description": "Questi e-reader CrossPoint hanno risposto sulla rete locale. Scegline uno o inserisci l'indirizzo manualmente.",
+        "data": {
+          "host": "Dispositivo"
+        }
+      },
+      "device": {
+        "title": "E-reader CrossPoint",
+        "description": "Il web server dell'e-reader è attivo solo in modalità File Transfer (o Calibre Wireless). Non ha autenticazione: usalo solo su una rete privata fidata.",
+        "data": {
+          "host": "Indirizzo",
+          "model": "Modello"
+        },
+        "data_description": {
+          "host": "Indirizzo IP o hostname, ad esempio crosspoint.local.",
+          "model": "Determina la risoluzione usata per gli sfondi."
+        }
+      },
+      "library": {
+        "title": "Cartella libreria",
+        "description": "Libri e sfondi entrano nella libreria solo tramite questa cartella, ad esempio copiandoli via Samba.",
+        "data": {
+          "library_path": "Cartella libreria",
+          "books_dir": "Sottocartella libri",
+          "wallpapers_dir": "Sottocartella sfondi"
+        },
+        "data_description": {
+          "library_path": "Percorso assoluto sull'host di Home Assistant, ad esempio /media/crosspoint.",
+          "books_dir": "Creata se non esiste.",
+          "wallpapers_dir": "Creata se non esiste."
+        }
+      },
+      "reconfigure": {
+        "title": "Riconfigura CrossPoint",
+        "data": {
+          "host": "Indirizzo",
+          "model": "Modello",
+          "library_path": "Cartella libreria",
+          "books_dir": "Sottocartella libri",
+          "wallpapers_dir": "Sottocartella sfondi"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect_confirm": "L'e-reader non è raggiungibile ora. Controlla l'indirizzo, oppure invia di nuovo per salvarlo comunque (il reader potrebbe semplicemente non essere in modalità File Transfer).",
+      "path_not_allowed": "Home Assistant non può accedere a questa cartella. Usa una cartella sotto /media o aggiungila ad allowlist_external_dirs.",
+      "path_not_found": "La cartella non esiste.",
+      "invalid_subfolder": "Nome della sottocartella non valido."
+    },
+    "abort": {
+      "already_configured": "Questo e-reader è già configurato.",
+      "reconfigure_successful": "Riconfigurazione completata."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opzioni CrossPoint",
+        "data": {
+          "scan_interval": "Intervallo di scansione della libreria"
+        }
+      }
+    }
+  },
+  "selector": {
+    "model": {
+      "options": {
+        "xteink_x4": "Xteink X4 (480 × 800)",
+        "xteink_x3": "Xteink X3 (528 × 792)",
+        "cross_share": "Cross-Share (480 × 800)"
+      }
+    },
+    "pick": {
+      "options": {
+        "manual": "Inserisci l'indirizzo manualmente"
+      }
+    }
+  }
+}
