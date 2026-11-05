@@ -10,7 +10,7 @@ commit (one topic per commit).
 |-------|-------------------------------|-------------|
 | 0     | Scaffolding                   | Done        |
 | 1     | Device client + config flow   | Done        |
-| 2     | Device reachability           | Not started |
+| 2     | Device reachability           | Done        |
 | 3     | Library scan                  | Not started |
 | 4     | Tracking store + book actions | Not started |
 | 5     | Wallpapers                    | Not started |
@@ -142,14 +142,20 @@ tests/
 - Options flow: library scan interval. Reconfigure flow: address, model and
   library folders.
 
-### Phase 2 — Device reachability
+### Phase 2 — Device reachability (done)
 
-- `DeviceCoordinator` polls `/api/status` every 15–30 seconds.
+- `CrossPointDeviceCoordinator` polls `/api/status` every 20 seconds. Being
+  offline is a normal state, not an update failure, so entities stay
+  available.
 - `binary_sensor.<device>_online` (device class `connectivity`) exposes the
-  state. Firmware version and RSSI become attributes or diagnostic sensors.
-- Central guard `ensure_online()`, used by every service and WebSocket
-  command, raises a translated `device_offline` error.
-- Register a device in the device registry (model, firmware version).
+  state. A diagnostic Wi-Fi signal sensor (RSSI, disabled by default) is
+  available only while the device is online.
+- The device registry entry carries the model and the firmware version, which
+  is updated whenever the device reports a new one.
+- `async_ensure_online()` probes the device immediately and raises the
+  translated `device_offline` error. Every service and WebSocket command must
+  call it first. `async_mark_connection_lost()` flips the state to offline
+  when an operation loses the connection.
 
 ### Phase 3 — Library
 
@@ -251,5 +257,5 @@ tests/
 
 ## Estimate
 
-About 10–13 working days in total, of which phases 0–1 (about 2 days) are
+About 10–13 working days in total, of which phases 0–2 (about 2.5 days) are
 done.
