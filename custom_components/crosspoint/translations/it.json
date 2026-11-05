@@ -319,7 +319,7 @@
             "password": "Password"
           },
           "data_description": {
-            "url": "Predefinito https://sync.crosspointreader.com; funzionano anche i server self-hosted."
+            "url": "Predefinito {default_url}; funzionano anche i server self-hosted."
           }
         },
         "reconfigure": {
@@ -329,7 +329,7 @@
             "password": "Password"
           },
           "data_description": {
-            "url": "Predefinito https://sync.crosspointreader.com; funzionano anche i server self-hosted."
+            "url": "Predefinito {default_url}; funzionano anche i server self-hosted."
           }
         }
       },

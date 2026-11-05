@@ -470,6 +470,7 @@ class SyncUserSubentryFlow(ConfigSubentryFlow):
         return self.async_show_form(
             step_id="user",
             data_schema=_sync_schema(defaults, with_username=True),
+            description_placeholders={"default_url": DEFAULT_SYNC_URL},
             errors=errors,
         )
 
@@ -504,6 +505,9 @@ class SyncUserSubentryFlow(ConfigSubentryFlow):
             data_schema=_sync_schema(
                 {CONF_SYNC_URL: subentry.data[CONF_SYNC_URL]}, with_username=False
             ),
-            description_placeholders={"username": username},
+            description_placeholders={
+                "username": username,
+                "default_url": DEFAULT_SYNC_URL,
+            },
             errors=errors,
         )
