@@ -11,7 +11,7 @@ commit (one topic per commit).
 | 0     | Scaffolding                   | Done        |
 | 1     | Device client + config flow   | Done        |
 | 2     | Device reachability           | Done        |
-| 3     | Library scan                  | Not started |
+| 3     | Library scan                  | Done        |
 | 4     | Tracking store + book actions | Done        |
 | 5     | Wallpapers                    | Not started |
 | 6     | Sidebar panel (frontend)      | Not started |
@@ -157,19 +157,32 @@ tests/
   call it first. `async_mark_connection_lost()` flips the state to offline
   when an operation loses the connection.
 
-### Phase 3 — Library
+### Phase 3 — Library (done)
 
-- Scan the books and wallpapers subfolders in the executor, periodically
-  (options interval) and on demand (`rescan_library`).
-- EPUB metadata with `zipfile` and ElementTree: `META-INF/container.xml`, then
-  the OPF for `dc:title`, `dc:creator` and the cover (`meta name="cover"` or
-  `properties="cover-image"`).
-- Covers are resized to thumbnails, cached under
-  `.storage/crosspoint/covers/<sha256>.jpg`, and served by an authenticated
-  `HomeAssistantView`.
-- Streaming SHA-256 for each file, cached by `(path, mtime, size)`.
-- Book state: `not_installed`, `installed`, or `modified` (hash differs from
-  the tracked one).
+- `LibraryCoordinator` scans the books (`.epub`) and wallpapers (`.bmp`,
+  `.gif`, `.jpeg`, `.jpg`, `.png`, `.webp`) subfolders recursively in the
+  executor, at the options interval and on demand (`rescan_library`). Hidden
+  files are skipped.
+- SHA-256 and metadata are cached by `(path, size, mtime)` in Home Assistant
+  storage, so a rescan only reads new or changed files.
+- EPUB metadata (`epub.py`) uses `zipfile` and ElementTree:
+  `META-INF/container.xml`, then the OPF for `dc:title`, `dc:creator` and the
+  cover (`properties="cover-image"`, then `meta name="cover"`, then an image
+  named like a cover). Package files are size-limited and entity declarations
+  are rejected. The file name is the title fallback.
+- Covers become JPEG thumbnails (max 300 × 450) in the Home Assistant cache
+  directory, `.cache/crosspoint/<entry_id>/covers/<sha256>.jpg`. Unused
+  thumbnails are pruned on each scan, and everything is deleted with the
+  config entry.
+- `CrossPointCoverView` serves thumbnails at
+  `/api/crosspoint/<entry_id>/cover/<sha256>` (authentication required; the
+  panel will use signed paths for image tags).
+- Item status combines the scan and the transfer store: `not_installed`,
+  `installed`, `modified` (hash differs from the sent one), or
+  `missing_from_library` (tracked, but no longer in the folder). The store
+  notifies the library on every change.
+- Sensors: library books, and books on the device (with `modified` and
+  `missing_from_library` counts as attributes).
 
 ### Phase 4 — Tracking store and book operations (done)
 
@@ -264,5 +277,5 @@ tests/
 
 ## Estimate
 
-About 10–13 working days in total, of which phases 0–2 and 4 (about 3.5 days)
-are done.
+About 10–13 working days in total, of which phases 0–4 (about 5 days) are
+done.
