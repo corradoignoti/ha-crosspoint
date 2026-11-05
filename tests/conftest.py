@@ -42,11 +42,21 @@ def setup_device_entry(hass, device, tmp_path):
     """Return a coroutine that sets up an entry talking to the fake device.
 
     The library lives in ``tmp_path`` (``books`` and ``wallpapers``
-    subfolders); create library files before calling it.
+    subfolders); create library files before calling it. The client stays
+    patched for the whole test, so entry reloads talk to the fake too.
     """
 
-    async def _setup():
+    def make_client(session, host, ws_port):
+        return CrossPointDeviceClient(
+            session,
+            "127.0.0.1",
+            http_port=device.http.port,
+            ws_port=device.ws.port,
+        )
+
+    async def _setup(subentries=()):
         entry = MockConfigEntry(
+            subentries_data=list(subentries),
             domain=DOMAIN,
             unique_id="crosspoint.local",
             title="CrossPoint",
@@ -59,18 +69,9 @@ def setup_device_entry(hass, device, tmp_path):
             },
         )
         entry.add_to_hass(hass)
-
-        def make_client(session, host, ws_port):
-            return CrossPointDeviceClient(
-                session,
-                "127.0.0.1",
-                http_port=device.http.port,
-                ws_port=device.ws.port,
-            )
-
-        with patch("custom_components.crosspoint.CrossPointDeviceClient", make_client):
-            assert await hass.config_entries.async_setup(entry.entry_id)
-            await hass.async_block_till_done()
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
         return entry
 
-    return _setup
+    with patch("custom_components.crosspoint.CrossPointDeviceClient", make_client):
+        yield _setup
