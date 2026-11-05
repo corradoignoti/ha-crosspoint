@@ -2,38 +2,15 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
 import pytest
 from homeassistant.const import STATE_OFF
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
-from pytest_homeassistant_custom_component.common import (
-    MockConfigEntry,
-    async_capture_events,
-)
+from pytest_homeassistant_custom_component.common import async_capture_events
 
-from custom_components.crosspoint.api.device import CrossPointDeviceClient
-from custom_components.crosspoint.const import (
-    CONF_BOOKS_DIR,
-    CONF_LIBRARY_PATH,
-    CONF_MODEL,
-    CONF_WALLPAPERS_DIR,
-    DOMAIN,
-    EVENT_UPLOAD_PROGRESS,
-)
-
-from .fake_device import FakeCrossPoint
+from custom_components.crosspoint.const import DOMAIN, EVENT_UPLOAD_PROGRESS
 
 pytestmark = pytest.mark.usefixtures("socket_enabled")
-
-
-@pytest.fixture
-async def device():
-    fake = FakeCrossPoint()
-    await fake.start()
-    yield fake
-    await fake.close()
 
 
 @pytest.fixture
@@ -45,30 +22,8 @@ def books(tmp_path):
 
 
 @pytest.fixture
-async def entry(hass: HomeAssistant, device, books, tmp_path):
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        unique_id="crosspoint.local",
-        title="CrossPoint",
-        data={
-            "host": "crosspoint.local",
-            CONF_MODEL: "xteink_x4",
-            CONF_LIBRARY_PATH: str(tmp_path),
-            CONF_BOOKS_DIR: "books",
-            CONF_WALLPAPERS_DIR: "wallpapers",
-        },
-    )
-    entry.add_to_hass(hass)
-
-    def make_client(session, host, ws_port):
-        return CrossPointDeviceClient(
-            session, "127.0.0.1", http_port=device.http.port, ws_port=device.ws.port
-        )
-
-    with patch("custom_components.crosspoint.CrossPointDeviceClient", make_client):
-        assert await hass.config_entries.async_setup(entry.entry_id)
-        await hass.async_block_till_done()
-    return entry
+async def entry(setup_device_entry, books):
+    return await setup_device_entry()
 
 
 async def _call(hass, service, entry, **data):
