@@ -253,6 +253,16 @@
         }
       }
     },
+    "reconcile_device": {
+      "name": "Reconcile device",
+      "description": "Compares the tracked books and wallpapers with the e-reader content. Files deleted from the e-reader are no longer shown as installed, and books already on it that match a library book by name and size are tracked. The e-reader must be in File Transfer mode.",
+      "fields": {
+        "config_entry_id": {
+          "name": "E-reader",
+          "description": "The CrossPoint e-reader to reconcile."
+        }
+      }
+    },
     "send_wallpaper": {
       "name": "Send wallpaper",
       "description": "Converts an image from the library to the e-reader resolution and uploads it as a sleep screen. The e-reader must be in File Transfer mode.",

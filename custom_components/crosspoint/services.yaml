@@ -40,6 +40,14 @@ rescan_library:
         config_entry:
           integration: crosspoint
 
+reconcile_device:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: crosspoint
+
 send_wallpaper:
   fields:
     config_entry_id:

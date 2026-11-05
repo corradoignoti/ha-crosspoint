@@ -125,3 +125,71 @@ async def test_unknown_entry(hass, entry):
             blocking=True,
         )
     assert err.value.translation_key == "entry_not_found"
+
+
+async def test_reconcile_forgets_files_deleted_on_device(hass, entry, device):
+    await _call(hass, "send_book", entry, file="Dune.epub")
+    del device.files["/Books/Dune.epub"]
+    result = await hass.services.async_call(
+        DOMAIN,
+        "reconcile_device",
+        {"config_entry_id": entry.entry_id},
+        blocking=True,
+        return_response=True,
+    )
+    assert result["removed"] == 1
+    assert entry.runtime_data.store.get("book", "Dune.epub") is None
+
+
+async def test_reconcile_adopts_matching_device_book(hass, entry, device, books):
+    device.dirs.add("/Books")
+    device.files["/Books/Dune.epub"] = (books / "Dune.epub").read_bytes()
+    device.files["/Books/Other.epub"] = b"not in the library"
+    result = await hass.services.async_call(
+        DOMAIN,
+        "reconcile_device",
+        {"config_entry_id": entry.entry_id},
+        blocking=True,
+        return_response=True,
+    )
+    assert result["adopted"] == 1
+    tracked = entry.runtime_data.store.get("book", "Dune.epub")
+    assert tracked.device_path == "/Books/Dune.epub"
+    assert tracked.sha256 == entry.runtime_data.library.data.books["Dune.epub"].sha256
+    assert entry.runtime_data.store.get("book", "Other.epub") is None
+
+
+async def test_reconcile_ignores_different_size(hass, entry, device):
+    device.dirs.add("/Books")
+    device.files["/Books/Dune.epub"] = b"someone else's"
+    result = await hass.services.async_call(
+        DOMAIN,
+        "reconcile_device",
+        {"config_entry_id": entry.entry_id},
+        blocking=True,
+        return_response=True,
+    )
+    assert result == {"removed": 0, "adopted": 0}
+    assert entry.runtime_data.store.all() == []
+
+
+async def test_reconcile_offline(hass, entry, device):
+    await device.close()
+    with pytest.raises(HomeAssistantError) as err:
+        await hass.services.async_call(
+            DOMAIN,
+            "reconcile_device",
+            {"config_entry_id": entry.entry_id},
+            blocking=True,
+        )
+    assert err.value.translation_key == "device_offline"
+
+
+async def test_reconcile_runs_when_device_comes_online(
+    hass, setup_device_entry, device, books
+):
+    device.dirs.add("/Books")
+    device.files["/Books/Dune.epub"] = (books / "Dune.epub").read_bytes()
+    entry = await setup_device_entry()
+    await hass.async_block_till_done()
+    assert entry.runtime_data.store.get("book", "Dune.epub") is not None

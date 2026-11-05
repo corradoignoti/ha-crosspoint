@@ -253,6 +253,16 @@
         }
       }
     },
+    "reconcile_device": {
+      "name": "Riconcilia dispositivo",
+      "description": "Confronta libri e sfondi tracciati con il contenuto dell'e-reader. I file eliminati dall'e-reader non risultano più installati e i libri già presenti che corrispondono a un libro della libreria per nome e dimensione vengono tracciati. L'e-reader deve essere in modalità File Transfer.",
+      "fields": {
+        "config_entry_id": {
+          "name": "E-reader",
+          "description": "L'e-reader CrossPoint da riconciliare."
+        }
+      }
+    },
     "send_wallpaper": {
       "name": "Invia sfondo",
       "description": "Converte un'immagine della libreria alla risoluzione dell'e-reader e la carica come schermata di riposo. L'e-reader deve essere in modalità File Transfer.",

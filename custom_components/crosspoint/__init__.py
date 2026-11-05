@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.typing import ConfigType
@@ -27,9 +29,11 @@ from .panel import async_register_panel, async_unregister_panel
 from .services import async_setup_services
 from .stats import ReadingStatsCoordinator
 from .store import TransferStore
-from .transfers import BookManager, WallpaperManager
+from .transfers import BookManager, WallpaperManager, async_reconcile_device
 from .views import CrossPointCoverView
 from .websocket_api import async_setup_websocket_api
+
+_LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
@@ -92,10 +96,46 @@ async def async_setup_entry(hass: HomeAssistant, entry: CrossPointConfigEntry) -
     for stats in entry.runtime_data.stats.values():
         await stats.async_refresh()
 
+    _async_reconcile_when_online(hass, entry)
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     await async_register_panel(hass)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     return True
+
+
+def _async_reconcile_when_online(
+    hass: HomeAssistant, entry: CrossPointConfigEntry
+) -> None:
+    """Reconcile the tracked files with the device each time it comes online."""
+    coordinator = entry.runtime_data.coordinator
+    was_online = False
+
+    async def reconcile() -> None:
+        try:
+            result = await async_reconcile_device(entry)
+        except HomeAssistantError as err:
+            _LOGGER.debug("Reconciliation skipped: %s", err)
+            return
+        if result.removed or result.adopted:
+            _LOGGER.info(
+                "Reconciled with the device: %d removed, %d adopted",
+                result.removed,
+                result.adopted,
+            )
+
+    @callback
+    def on_update() -> None:
+        nonlocal was_online
+        online = coordinator.online
+        if online and not was_online:
+            entry.async_create_background_task(
+                hass, reconcile(), "crosspoint_reconcile"
+            )
+        was_online = online
+
+    entry.async_on_unload(coordinator.async_add_listener(on_update))
+    on_update()
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: CrossPointConfigEntry) -> bool:

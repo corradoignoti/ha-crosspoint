@@ -14,6 +14,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.util import dt as dt_util
 
+from .api.device import DeviceFile
 from .api.errors import CrossPointError, CrossPointResponseError
 from .const import (
     CONF_BOOKS_DIR,
@@ -45,6 +46,16 @@ _LOGGER = logging.getLogger(__name__)
 
 # Fire at most one progress event per this many bytes.
 _PROGRESS_STEP = 256 * 1024
+# How deep below the device books folder untracked EPUBs are looked for.
+_MAX_SCAN_DEPTH = 3
+
+
+@dataclass(frozen=True, slots=True)
+class ReconcileResult:
+    """Outcome of comparing the tracked transfers with the device content."""
+
+    removed: int = 0  # tracked files that are no longer on the device
+    adopted: int = 0  # untracked device files matched to a library file
 
 
 @dataclass(frozen=True, slots=True)
@@ -199,6 +210,37 @@ class TransferManager:
             return True  # the parent folder itself is gone
         return all(f.name != name for f in files)
 
+    async def _async_list(self, path: str) -> list[DeviceFile] | None:
+        """List a device folder; None if the folder does not exist."""
+        try:
+            return await self._client.list_files(path)
+        except CrossPointResponseError:
+            return None
+        except CrossPointError as err:
+            self._coordinator.async_mark_connection_lost(err)
+            raise translated_error("connection_lost", error=str(err)) from err
+
+    async def _async_forget_gone(self) -> int:
+        """Stop tracking files that were deleted from the device."""
+        tracked = self._store.all(self.kind)
+        listings: dict[str, set[str]] = {}
+        removed = 0
+        for transfer in tracked:
+            parent, name = posixpath.split(transfer.device_path)
+            if parent not in listings:
+                files = await self._async_list(parent or "/")
+                listings[parent] = set() if files is None else {f.name for f in files}
+            if name not in listings[parent]:
+                await self._store.async_forget(self.kind, transfer.file)
+                removed += 1
+        return removed
+
+    async def async_reconcile(self) -> ReconcileResult:
+        """Align the tracked transfers with what is on the device."""
+        async with self._lock:
+            await self._coordinator.async_ensure_online()
+            return ReconcileResult(removed=await self._async_forget_gone())
+
     def _progress_reporter(self, rel: str) -> Callable[[int, int], None]:
         last = -_PROGRESS_STEP
 
@@ -245,6 +287,68 @@ class BookManager(TransferManager):
     def device_dir(self) -> str:
         """Destination folder for books on the SD card."""
         return self._entry.options.get(CONF_DEVICE_BOOKS_DIR, DEFAULT_DEVICE_BOOKS_DIR)
+
+    async def _async_device_epubs(self) -> list[tuple[str, int]]:
+        """Return (device path, size) of the EPUBs under the books folder."""
+        found: list[tuple[str, int]] = []
+        pending = [(self.device_dir, 0)]
+        while pending:
+            folder, depth = pending.pop()
+            files = await self._async_list(folder)
+            for f in files or []:
+                path = posixpath.join(folder, f.name)
+                if f.is_directory:
+                    if depth < _MAX_SCAN_DEPTH:
+                        pending.append((path, depth + 1))
+                elif f.name.lower().endswith(".epub"):
+                    found.append((path, f.size))
+        return found
+
+    async def _async_adopt_untracked(self) -> int:
+        """Track device books that match a library book by name and size.
+
+        The listing has no content hash, so a book is only adopted when
+        exactly one library book has the same file name and size, and no
+        other tracked book already points at that device path.
+        """
+        library = self._entry.runtime_data.library.data
+        if library is None:
+            return 0
+        tracked_paths = {t.device_path for t in self._store.all(self.kind)}
+        adopted = 0
+        for device_path, size in await self._async_device_epubs():
+            if device_path in tracked_paths:
+                continue
+            name = posixpath.basename(device_path).casefold()
+            matches = [
+                book
+                for rel, book in library.books.items()
+                if posixpath.basename(rel).casefold() == name
+                and book.size == size
+                and self._store.get(self.kind, rel) is None
+            ]
+            if len(matches) != 1:
+                continue
+            book = matches[0]
+            await self._store.async_record(
+                kind=self.kind,
+                file=book.file,
+                sha256=book.sha256,
+                size=size,
+                sent_at=dt_util.utcnow(),
+                device_path=device_path,
+            )
+            adopted += 1
+        return adopted
+
+    async def async_reconcile(self) -> ReconcileResult:
+        """Drop deleted books from the store and adopt matching device books."""
+        async with self._lock:
+            await self._coordinator.async_ensure_online()
+            removed = await self._async_forget_gone()
+            return ReconcileResult(
+                removed=removed, adopted=await self._async_adopt_untracked()
+            )
 
     async def async_send(self, file: str, *, overwrite: bool = False) -> Transfer:
         """Upload a library book to the device and track it."""
@@ -363,3 +467,13 @@ class WallpaperManager(TransferManager):
                 rel, local, len(wallpaper.data), device_path, mode=mode
             )
             return transfer, wallpaper.has_transparency
+
+
+async def async_reconcile_device(entry: CrossPointConfigEntry) -> ReconcileResult:
+    """Reconcile books and wallpapers of an entry with the device content."""
+    runtime = entry.runtime_data
+    books = await runtime.books.async_reconcile()
+    wallpapers = await runtime.wallpapers.async_reconcile()
+    return ReconcileResult(
+        removed=books.removed + wallpapers.removed, adopted=books.adopted
+    )

@@ -17,6 +17,7 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 
 from .const import DOMAIN
+from .transfers import async_reconcile_device
 from .wallpaper import MODE_NORMAL, MODES
 
 if TYPE_CHECKING:
@@ -32,6 +33,7 @@ ATTR_FORCE = "force"
 SERVICE_SEND_BOOK = "send_book"
 SERVICE_REMOVE_BOOK = "remove_book"
 SERVICE_RESCAN_LIBRARY = "rescan_library"
+SERVICE_RECONCILE_DEVICE = "reconcile_device"
 SERVICE_REFRESH_READING_STATS = "refresh_reading_stats"
 SERVICE_SEND_WALLPAPER = "send_wallpaper"
 SERVICE_REMOVE_WALLPAPER = "remove_wallpaper"
@@ -115,6 +117,11 @@ def async_setup_services(hass: HomeAssistant) -> None:
         for coordinator in entry.runtime_data.stats.values():
             await coordinator.async_refresh()
 
+    async def reconcile_device(call: ServiceCall) -> ServiceResponse:
+        entry = _get_entry(hass, call)
+        result = await async_reconcile_device(entry)
+        return {"removed": result.removed, "adopted": result.adopted}
+
     async def rescan_library(call: ServiceCall) -> None:
         entry = _get_entry(hass, call)
         await entry.runtime_data.library.async_refresh()
@@ -134,6 +141,13 @@ def async_setup_services(hass: HomeAssistant) -> None:
         SERVICE_RESCAN_LIBRARY,
         rescan_library,
         schema=RESCAN_LIBRARY_SCHEMA,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_RECONCILE_DEVICE,
+        reconcile_device,
+        schema=RESCAN_LIBRARY_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
     )
     hass.services.async_register(
         DOMAIN,

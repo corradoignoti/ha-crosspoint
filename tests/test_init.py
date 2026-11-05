@@ -36,6 +36,13 @@ STATUS = {"version": "1.2.3", "device": "X4", "rssi": -55}
 OFFLINE = CrossPointConnectionError("offline")
 
 
+@pytest.fixture(autouse=True)
+def no_reconcile():
+    """These tests only fake the status probe: skip the device file listing."""
+    with patch("custom_components.crosspoint.async_reconcile_device", AsyncMock()):
+        yield
+
+
 @pytest.fixture
 def entry(hass: HomeAssistant, tmp_path) -> MockConfigEntry:
     entry = MockConfigEntry(
