@@ -14,7 +14,7 @@ commit (one topic per commit).
 | 3     | Library scan                  | Done        |
 | 4     | Tracking store + book actions | Done        |
 | 5     | Wallpapers                    | Done        |
-| 6     | Sidebar panel (frontend)      | Not started |
+| 6     | Sidebar panel (frontend)      | Done        |
 | 7     | Reading stats                 | Not started |
 | 8     | Services, i18n, docs, release | Not started |
 
@@ -231,23 +231,38 @@ tests/
   path validation, upload and delete with error mapping, progress events,
   removal of tracked files.
 
-### Phase 6 — Sidebar panel
+### Phase 6 — Sidebar panel (done)
 
-- Register a `panel_custom` with static files served through
-  `async_register_static_paths`.
-- Web component (Lit or vanilla), built from `frontend_src/` into a single
-  committed bundle.
-- Views:
-  - Books: cover grid, status badges, Send / Remove / Re-send.
-  - Wallpapers: thumbnails, mode choice, Send.
-  - Header: device online state and Rescan button.
-- Send and Remove are disabled while the device is offline; the panel follows
-  the online entity state.
-- WebSocket commands (admin only): `crosspoint/library`,
-  `crosspoint/send_book`, `crosspoint/remove_book`,
-  `crosspoint/send_wallpaper`, `crosspoint/wallpaper_check`,
-  `crosspoint/rescan`.
-- UI strings come from a translation dictionary, not inline literals.
+- `panel.py` registers the `crosspoint` sidebar panel (admin only) while at
+  least one entry is loaded, serving the bundle from
+  `custom_components/crosspoint/frontend/` with a version query string for
+  cache busting.
+- WebSocket commands (`websocket_api.py`, admin only):
+  - `crosspoint/entries`: loaded e-readers.
+  - `crosspoint/subscribe`: streams `state` (device, model, online, books,
+    wallpapers with status and signed thumbnail URLs), `progress` during
+    uploads, and `closed` when the entry unloads (the panel resubscribes).
+  - `crosspoint/send_book`, `remove_book`, `send_wallpaper`,
+    `remove_wallpaper`, `wallpaper_check`, `rescan`. Errors carry the
+    translation key, so the panel can react to `file_exists_on_device`,
+    `not_on_device` and `no_transparency`.
+- Wallpapers now get thumbnails too (transparent areas on white); the library
+  cache format was bumped so existing entries are re-indexed.
+- Frontend (`frontend_src/`, Lit 3, bundled with esbuild into one committed
+  file; CI checks the bundle is up to date):
+  - Books and Wallpapers tabs with cover grid, status badges, search and
+    per-item upload progress.
+  - Online chip, offline banner; Send and Remove are disabled while offline.
+  - Confirmation dialogs for removal, replacing an untracked file on the
+    device, forgetting a file missing from the device, and sending an opaque
+    image as a transparent overlay.
+  - Normal / transparent mode per wallpaper, rescan button, e-reader selector
+    when several are configured.
+  - English and Italian strings in `localize.js`; only the selected tab and
+    e-reader are kept in the browser.
+- Checked manually in a local Home Assistant 2026.10 with the fake firmware
+  server: library, send with toast, transparency warning, offline state,
+  Italian UI, phone width.
 
 ### Phase 7 — Reading stats
 
@@ -292,5 +307,5 @@ tests/
 
 ## Estimate
 
-About 10–13 working days in total, of which phases 0–5 (about 6 days) are
+About 10–13 working days in total, of which phases 0–6 (about 8.5 days) are
 done.
