@@ -42,6 +42,7 @@ private network.
 ```bash
 uv venv --python 3.14 .venv
 uv pip install --python .venv -r requirements_test.txt
+uv pip install --python .venv "$(.venv/bin/python scripts/frontend_requirement.py)"
 .venv/bin/ruff check . && .venv/bin/pytest
 ```
 
