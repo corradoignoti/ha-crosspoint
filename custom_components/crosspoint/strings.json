@@ -61,9 +61,16 @@
       "init": {
         "title": "CrossPoint options",
         "data": {
-          "scan_interval": "Library scan interval"
+          "scan_interval": "Library scan interval",
+          "device_books_dir": "Books folder on the device"
+        },
+        "data_description": {
+          "device_books_dir": "Folder on the e-reader SD card where books are sent, for example /Books."
         }
       }
+    },
+    "error": {
+      "invalid_device_folder": "Invalid folder on the device."
     }
   },
   "selector": {
@@ -95,6 +102,71 @@
   "exceptions": {
     "device_offline": {
       "message": "The CrossPoint e-reader at {host} is not reachable. Put it in File Transfer mode and try again."
+    },
+    "file_not_found": {
+      "message": "The book {file} is not in the library."
+    },
+    "invalid_file": {
+      "message": "Invalid library file name: {file}."
+    },
+    "file_exists_on_device": {
+      "message": "A file named {file} already exists on the device and was not sent by Home Assistant. Send it again with overwrite enabled to replace it."
+    },
+    "not_tracked": {
+      "message": "The book {file} was not sent by Home Assistant, so it cannot be removed from here."
+    },
+    "not_on_device": {
+      "message": "The file {file} is no longer on the device. Remove it again with \"forget missing\" enabled to stop tracking it."
+    },
+    "connection_lost": {
+      "message": "The connection to the e-reader was lost: {error}"
+    },
+    "device_error": {
+      "message": "The e-reader reported an error: {error}"
+    },
+    "entry_not_found": {
+      "message": "No CrossPoint configuration with ID {entry_id}."
+    },
+    "entry_not_loaded": {
+      "message": "The CrossPoint configuration {title} is not loaded."
+    }
+  },
+  "services": {
+    "send_book": {
+      "name": "Send book",
+      "description": "Uploads a book from the library to the e-reader. The e-reader must be in File Transfer mode.",
+      "fields": {
+        "config_entry_id": {
+          "name": "E-reader",
+          "description": "The CrossPoint e-reader to send the book to."
+        },
+        "file": {
+          "name": "File",
+          "description": "Path of the book, relative to the books subfolder of the library."
+        },
+        "overwrite": {
+          "name": "Overwrite",
+          "description": "Replace a file with the same name on the device, even if it was not sent by Home Assistant."
+        }
+      }
+    },
+    "remove_book": {
+      "name": "Remove book",
+      "description": "Deletes a book sent by Home Assistant from the e-reader. The e-reader must be in File Transfer mode.",
+      "fields": {
+        "config_entry_id": {
+          "name": "E-reader",
+          "description": "The CrossPoint e-reader to remove the book from."
+        },
+        "file": {
+          "name": "File",
+          "description": "Path of the book, relative to the books subfolder of the library."
+        },
+        "forget_missing": {
+          "name": "Forget missing",
+          "description": "Stop tracking the book if it is no longer on the device."
+        }
+      }
     }
   }
 }

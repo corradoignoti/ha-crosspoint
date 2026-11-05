@@ -31,12 +31,14 @@ from .api.device import CrossPointDeviceClient
 from .api.errors import CrossPointError
 from .const import (
     CONF_BOOKS_DIR,
+    CONF_DEVICE_BOOKS_DIR,
     CONF_LIBRARY_PATH,
     CONF_MODEL,
     CONF_SCAN_INTERVAL,
     CONF_WALLPAPERS_DIR,
     CONF_WS_PORT,
     DEFAULT_BOOKS_DIR,
+    DEFAULT_DEVICE_BOOKS_DIR,
     DEFAULT_HOST,
     DEFAULT_LIBRARY_PATH,
     DEFAULT_MODEL,
@@ -263,7 +265,10 @@ class CrossPointConfigFlow(ConfigFlow, domain=DOMAIN):
                 return self.async_create_entry(
                     title=f"CrossPoint ({self._device[CONF_HOST]})",
                     data={**self._device, **_normalize_library(user_input)},
-                    options={CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL_MIN},
+                    options={
+                        CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL_MIN,
+                        CONF_DEVICE_BOOKS_DIR: DEFAULT_DEVICE_BOOKS_DIR,
+                    },
                 )
             errors["base"] = error
 
@@ -319,18 +324,30 @@ class CrossPointOptionsFlow(OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Manage the options."""
+        errors: dict[str, str] = {}
         if user_input is not None:
-            return self.async_create_entry(
-                data={CONF_SCAN_INTERVAL: int(user_input[CONF_SCAN_INTERVAL])}
-            )
-        current = self.config_entry.options.get(
-            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_MIN
-        )
+            device_dir = "/" + user_input[CONF_DEVICE_BOOKS_DIR].strip().strip("/")
+            if ".." in device_dir.split("/") or ":" in device_dir:
+                errors["base"] = "invalid_device_folder"
+            else:
+                return self.async_create_entry(
+                    data={
+                        CONF_SCAN_INTERVAL: int(user_input[CONF_SCAN_INTERVAL]),
+                        CONF_DEVICE_BOOKS_DIR: device_dir,
+                    }
+                )
+        options = {**self.config_entry.options, **(user_input or {})}
         return self.async_show_form(
             step_id="init",
+            errors=errors,
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_SCAN_INTERVAL, default=current): NumberSelector(
+                    vol.Required(
+                        CONF_SCAN_INTERVAL,
+                        default=options.get(
+                            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_MIN
+                        ),
+                    ): NumberSelector(
                         NumberSelectorConfig(
                             min=1,
                             max=1440,
@@ -338,7 +355,13 @@ class CrossPointOptionsFlow(OptionsFlow):
                             mode=NumberSelectorMode.BOX,
                             unit_of_measurement="min",
                         )
-                    )
+                    ),
+                    vol.Required(
+                        CONF_DEVICE_BOOKS_DIR,
+                        default=options.get(
+                            CONF_DEVICE_BOOKS_DIR, DEFAULT_DEVICE_BOOKS_DIR
+                        ),
+                    ): TextSelector(),
                 }
             ),
         )

@@ -1,0 +1,33 @@
+send_book:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: crosspoint
+    file:
+      required: true
+      example: "Dune.epub"
+      selector:
+        text:
+    overwrite:
+      default: false
+      selector:
+        boolean:
+
+remove_book:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: crosspoint
+    file:
+      required: true
+      example: "Dune.epub"
+      selector:
+        text:
+    forget_missing:
+      default: false
+      selector:
+        boolean:

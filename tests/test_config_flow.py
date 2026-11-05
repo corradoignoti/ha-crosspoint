@@ -12,6 +12,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.crosspoint.const import (
     CONF_BOOKS_DIR,
+    CONF_DEVICE_BOOKS_DIR,
     CONF_LIBRARY_PATH,
     CONF_MODEL,
     CONF_SCAN_INTERVAL,
@@ -77,7 +78,10 @@ async def test_manual_flow_online(hass: HomeAssistant, library):
         CONF_BOOKS_DIR: "books",
         CONF_WALLPAPERS_DIR: "wallpapers",
     }
-    assert result["options"] == {CONF_SCAN_INTERVAL: 30}
+    assert result["options"] == {
+        CONF_SCAN_INTERVAL: 30,
+        CONF_DEVICE_BOOKS_DIR: "/Books",
+    }
     assert (library / "books").is_dir()
     assert (library / "wallpapers").is_dir()
 
@@ -175,10 +179,14 @@ async def test_options_flow(hass: HomeAssistant, library):
     await hass.config_entries.async_setup(entry.entry_id)
     result = await hass.config_entries.options.async_init(entry.entry_id)
     result = await hass.config_entries.options.async_configure(
-        result["flow_id"], {CONF_SCAN_INTERVAL: 10}
+        result["flow_id"], {CONF_SCAN_INTERVAL: 10, CONF_DEVICE_BOOKS_DIR: "../x"}
+    )
+    assert result["errors"] == {"base": "invalid_device_folder"}
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {CONF_SCAN_INTERVAL: 10, CONF_DEVICE_BOOKS_DIR: "ebooks/"}
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options == {CONF_SCAN_INTERVAL: 10}
+    assert entry.options == {CONF_SCAN_INTERVAL: 10, CONF_DEVICE_BOOKS_DIR: "/ebooks"}
 
 
 async def test_reconfigure(hass: HomeAssistant, library):

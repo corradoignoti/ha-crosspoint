@@ -13,6 +13,7 @@ CONF_LIBRARY_PATH: Final = "library_path"
 CONF_BOOKS_DIR: Final = "books_dir"
 CONF_WALLPAPERS_DIR: Final = "wallpapers_dir"
 CONF_SCAN_INTERVAL: Final = "scan_interval"
+CONF_DEVICE_BOOKS_DIR: Final = "device_books_dir"
 
 DEFAULT_HOST: Final = "crosspoint.local"
 DEFAULT_HTTP_PORT: Final = 80
@@ -26,6 +27,12 @@ DEFAULT_BOOKS_DIR: Final = "books"
 DEFAULT_WALLPAPERS_DIR: Final = "wallpapers"
 DEFAULT_SCAN_INTERVAL_MIN: Final = 30
 DEVICE_POLL_INTERVAL_S: Final = 20
+DEFAULT_DEVICE_BOOKS_DIR: Final = "/Books"
+
+EVENT_UPLOAD_PROGRESS: Final = f"{DOMAIN}_upload_progress"
+
+KIND_BOOK: Final = "book"
+KIND_WALLPAPER: Final = "wallpaper"
 
 
 @dataclass(frozen=True, slots=True)

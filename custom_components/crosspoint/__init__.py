@@ -7,13 +7,26 @@ from dataclasses import dataclass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.typing import ConfigType
 
 from .api.device import CrossPointDeviceClient
-from .const import CONF_MODEL, CONF_WS_PORT, DEFAULT_WS_PORT, MODELS, DeviceModel
+from .books import BookManager
+from .const import (
+    CONF_MODEL,
+    CONF_WS_PORT,
+    DEFAULT_WS_PORT,
+    DOMAIN,
+    MODELS,
+    DeviceModel,
+)
 from .coordinator import CrossPointDeviceCoordinator
+from .services import async_setup_services
+from .store import TransferStore
 
 PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR]
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
 @dataclass(slots=True)
@@ -23,9 +36,17 @@ class CrossPointRuntimeData:
     client: CrossPointDeviceClient
     model: DeviceModel
     coordinator: CrossPointDeviceCoordinator
+    store: TransferStore
+    books: BookManager
 
 
 type CrossPointConfigEntry = ConfigEntry[CrossPointRuntimeData]
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Set up the integration-wide services."""
+    async_setup_services(hass)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: CrossPointConfigEntry) -> bool:
@@ -36,8 +57,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: CrossPointConfigEntry) -
         ws_port=entry.data.get(CONF_WS_PORT, DEFAULT_WS_PORT),
     )
     coordinator = CrossPointDeviceCoordinator(hass, entry, client)
+    store = TransferStore(hass, entry.entry_id)
+    await store.async_load()
     entry.runtime_data = CrossPointRuntimeData(
-        client=client, model=MODELS[entry.data[CONF_MODEL]], coordinator=coordinator
+        client=client,
+        model=MODELS[entry.data[CONF_MODEL]],
+        coordinator=coordinator,
+        store=store,
+        books=BookManager(hass, entry, coordinator, store),
     )
     # An offline reader is a normal state, so the first refresh never fails.
     await coordinator.async_config_entry_first_refresh()
@@ -50,6 +77,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: CrossPointConfigEntry) -
 async def async_unload_entry(hass: HomeAssistant, entry: CrossPointConfigEntry) -> bool:
     """Unload a config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: CrossPointConfigEntry) -> None:
+    """Delete the transfer history when the entry is removed."""
+    await TransferStore(hass, entry.entry_id).async_remove_all()
 
 
 async def _async_update_listener(

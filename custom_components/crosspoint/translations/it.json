@@ -61,9 +61,16 @@
       "init": {
         "title": "Opzioni CrossPoint",
         "data": {
-          "scan_interval": "Intervallo di scansione della libreria"
+          "scan_interval": "Intervallo di scansione della libreria",
+          "device_books_dir": "Cartella libri sul dispositivo"
+        },
+        "data_description": {
+          "device_books_dir": "Cartella sulla scheda SD dell'e-reader in cui inviare i libri, ad esempio /Books."
         }
       }
+    },
+    "error": {
+      "invalid_device_folder": "Cartella sul dispositivo non valida."
     }
   },
   "selector": {
@@ -95,6 +102,71 @@
   "exceptions": {
     "device_offline": {
       "message": "L'e-reader CrossPoint su {host} non è raggiungibile. Mettilo in modalità File Transfer e riprova."
+    },
+    "file_not_found": {
+      "message": "Il libro {file} non è nella libreria."
+    },
+    "invalid_file": {
+      "message": "Nome di file della libreria non valido: {file}."
+    },
+    "file_exists_on_device": {
+      "message": "Sul dispositivo esiste già un file {file} non inviato da Home Assistant. Invialo di nuovo con la sovrascrittura attiva per sostituirlo."
+    },
+    "not_tracked": {
+      "message": "Il libro {file} non è stato inviato da Home Assistant, quindi non può essere rimosso da qui."
+    },
+    "not_on_device": {
+      "message": "Il file {file} non è più sul dispositivo. Rimuovilo di nuovo con \"dimentica se mancante\" attivo per smettere di tracciarlo."
+    },
+    "connection_lost": {
+      "message": "La connessione con l'e-reader si è interrotta: {error}"
+    },
+    "device_error": {
+      "message": "L'e-reader ha segnalato un errore: {error}"
+    },
+    "entry_not_found": {
+      "message": "Nessuna configurazione CrossPoint con ID {entry_id}."
+    },
+    "entry_not_loaded": {
+      "message": "La configurazione CrossPoint {title} non è caricata."
+    }
+  },
+  "services": {
+    "send_book": {
+      "name": "Invia libro",
+      "description": "Carica un libro dalla libreria sull'e-reader. L'e-reader deve essere in modalità File Transfer.",
+      "fields": {
+        "config_entry_id": {
+          "name": "E-reader",
+          "description": "L'e-reader CrossPoint a cui inviare il libro."
+        },
+        "file": {
+          "name": "File",
+          "description": "Percorso del libro, relativo alla sottocartella libri della libreria."
+        },
+        "overwrite": {
+          "name": "Sovrascrivi",
+          "description": "Sostituisce un file con lo stesso nome sul dispositivo, anche se non inviato da Home Assistant."
+        }
+      }
+    },
+    "remove_book": {
+      "name": "Rimuovi libro",
+      "description": "Elimina dall'e-reader un libro inviato da Home Assistant. L'e-reader deve essere in modalità File Transfer.",
+      "fields": {
+        "config_entry_id": {
+          "name": "E-reader",
+          "description": "L'e-reader CrossPoint da cui rimuovere il libro."
+        },
+        "file": {
+          "name": "File",
+          "description": "Percorso del libro, relativo alla sottocartella libri della libreria."
+        },
+        "forget_missing": {
+          "name": "Dimentica se mancante",
+          "description": "Smette di tracciare il libro se non è più sul dispositivo."
+        }
+      }
     }
   }
 }
