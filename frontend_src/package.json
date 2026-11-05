@@ -2,11 +2,11 @@
   "name": "crosspoint-panel",
   "version": "0.1.0",
   "private": true,
-  "description": "Sidebar panel of the CrossPoint Home Assistant integration",
+  "description": "Sidebar panel and Lovelace card of the CrossPoint Home Assistant integration",
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "esbuild src/crosspoint-panel.js --bundle --format=esm --minify --target=es2021 --legal-comments=none --outfile=../custom_components/crosspoint/frontend/crosspoint-panel.js",
+    "build": "esbuild src/crosspoint-panel.js src/crosspoint-stats-card.js --bundle --format=esm --minify --target=es2021 --legal-comments=none --outdir=../custom_components/crosspoint/frontend",
     "watch": "npm run build -- --watch"
   },
   "dependencies": {

@@ -38,6 +38,11 @@ async def test_panel_registered_and_removed(hass: HomeAssistant, entry):
     assert "crosspoint" not in hass.data[frontend.DATA_PANELS]
 
 
+async def test_stats_card_loaded(hass: HomeAssistant, entry):
+    urls = hass.data[frontend.DATA_EXTRA_MODULE_URL].urls
+    assert any("/crosspoint_static/crosspoint-stats-card.js" in url for url in urls)
+
+
 async def test_entries(hass: HomeAssistant, entry, hass_ws_client):
     client = await hass_ws_client(hass)
     await client.send_json_auto_id({"type": "crosspoint/entries"})
