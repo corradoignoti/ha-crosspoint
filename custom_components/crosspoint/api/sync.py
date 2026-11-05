@@ -87,6 +87,17 @@ class CrossPointSyncClient:
             raise CrossPointResponseError("Invalid summary response")
         return data
 
+    async def async_activity(self, tz_offset: int) -> dict[str, Any]:
+        """Return pages, finished books and reading days from the progress log.
+
+        ``tz_offset`` is the UTC offset in minutes as JS ``getTimezoneOffset()``
+        gives it (positive west of UTC), so days bucket in local time.
+        """
+        data = await self._get("/api/v1/stats/activity", tz=tz_offset)
+        if not isinstance(data, dict):
+            raise CrossPointResponseError("Invalid activity response")
+        return data
+
     async def async_global(self) -> dict[str, Any]:
         """Return the per-device statistics snapshots."""
         data = await self._get("/api/v1/stats/global")

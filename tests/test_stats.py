@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 import pytest
 from homeassistant.config_entries import ConfigSubentryData
 from homeassistant.const import STATE_UNAVAILABLE
@@ -13,7 +15,7 @@ from custom_components.crosspoint.api.sync import password_key
 from custom_components.crosspoint.const import DOMAIN
 from custom_components.crosspoint.stats import ReadingStats
 
-from .fake_sync import SUMMARY, FakeSync
+from .fake_sync import ACTIVITY, SUMMARY, FakeSync
 
 pytestmark = pytest.mark.usefixtures("socket_enabled")
 
@@ -53,6 +55,16 @@ def test_stats_from_summary():
     assert empty.seconds == 0
     assert empty.time_of_day_minutes == {}
     assert empty.last_upload is None
+
+
+def test_stats_from_activity_when_summary_is_empty():
+    empty = {"sessions": 0, "seconds": 0, "pages": 0, "completed": 0, "devices": []}
+    stats = ReadingStats.from_summary(empty, ACTIVITY, today=date(2026, 11, 5))
+    assert (stats.pages, stats.completed, stats.seconds) == (1923, 2, 0)
+    assert (stats.current_streak, stats.longest_streak) == (2, 2)
+    # Today not read yet: the streak still ends yesterday.
+    stats = ReadingStats.from_summary(empty, ACTIVITY, today=date(2026, 11, 6))
+    assert stats.current_streak == 2
 
 
 async def test_sensors(hass: HomeAssistant, setup_device_entry, sync):

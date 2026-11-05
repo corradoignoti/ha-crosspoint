@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.config_entries import ConfigSubentry
@@ -46,6 +46,35 @@ def _minutes(values: Any, labels: tuple[str, ...]) -> dict[str, int]:
     }
 
 
+def _streaks(activity: dict[str, Any], today: date) -> tuple[int, int]:
+    """Return (current, longest) streaks of days with reading progress.
+
+    A day counts when it has a sync or forward pages. The current streak may
+    end yesterday, since today is not over.
+    """
+    days = set()
+    for entry in activity.get("days") or []:
+        if not isinstance(entry, dict) or not (
+            entry.get("syncs") or entry.get("pages")
+        ):
+            continue
+        try:
+            days.add(date.fromisoformat(str(entry.get("day"))))
+        except ValueError:
+            continue
+    longest = run = 0
+    previous: date | None = None
+    for day in sorted(days):
+        run = run + 1 if previous and day - previous == timedelta(days=1) else 1
+        longest = max(longest, run)
+        previous = day
+    end = today if today in days else today - timedelta(days=1)
+    current = 0
+    while end - timedelta(days=current) in days:
+        current += 1
+    return current, longest
+
+
 @dataclass(frozen=True, slots=True)
 class ReadingStats:
     """Combined reading statistics of one user, across devices."""
@@ -62,8 +91,18 @@ class ReadingStats:
     last_upload: datetime | None = None
 
     @classmethod
-    def from_summary(cls, summary: dict[str, Any]) -> ReadingStats:
-        """Build from a GET /api/v1/stats/summary response."""
+    def from_summary(
+        cls,
+        summary: dict[str, Any],
+        activity: dict[str, Any] | None = None,
+        today: date | None = None,
+    ) -> ReadingStats:
+        """Build from a GET /api/v1/stats/summary response.
+
+        Readers that never upload stats (stock CrossPoint, KOReader) leave the
+        summary empty; ``activity`` (GET /api/v1/stats/activity, derived from
+        the progress log) fills in pages, finished books and streaks.
+        """
         devices = tuple(
             {
                 "device_id": str(d.get("device_id", "")),
@@ -78,13 +117,30 @@ class ReadingStats:
             for d in devices
             if isinstance(d["updated_at"], (int, float))
         ]
+        pages = _number(summary, "pages")
+        completed = _number(summary, "completed")
+        longest = _number(summary, "streak")
+        current = _number(summary, "current_streak")
+        if activity:
+            pages = max(pages, _number(activity, "pages_total"))
+            completed = max(
+                completed,
+                sum(
+                    1
+                    for b in activity.get("books") or []
+                    if isinstance(b, dict) and b.get("finished_at")
+                ),
+            )
+            act_current, act_longest = _streaks(activity, today or dt_util.now().date())
+            longest = max(longest, act_longest)
+            current = max(current, act_current)
         return cls(
             seconds=_number(summary, "seconds"),
-            pages=_number(summary, "pages"),
-            completed=_number(summary, "completed"),
+            pages=pages,
+            completed=completed,
             sessions=_number(summary, "sessions"),
-            longest_streak=_number(summary, "streak"),
-            current_streak=_number(summary, "current_streak"),
+            longest_streak=longest,
+            current_streak=current,
             weekday_minutes=_minutes(summary.get("dow"), WEEKDAYS),
             time_of_day_minutes=_minutes(summary.get("tod"), TIMES_OF_DAY),
             devices=devices,
@@ -158,4 +214,15 @@ class ReadingStatsCoordinator(DataUpdateCoordinator[ReadingStats]):
                 translation_placeholders={"error": str(err)},
             ) from err
         ir.async_delete_issue(self.hass, DOMAIN, self._issue_id)
-        return ReadingStats.from_summary(summary)
+        try:
+            activity = await self.client.async_activity(self._tz_offset())
+        except CrossPointError as err:
+            # Older servers lack the endpoint; the summary alone is still valid.
+            _LOGGER.debug("No activity stats for %s: %s", self.client.username, err)
+            activity = None
+        return ReadingStats.from_summary(summary, activity)
+
+    def _tz_offset(self) -> int:
+        """Return the local UTC offset in minutes, as JS getTimezoneOffset()."""
+        offset = dt_util.now().utcoffset() or timedelta()
+        return -int(offset.total_seconds() // 60)

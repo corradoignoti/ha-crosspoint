@@ -25,6 +25,23 @@ SUMMARY = {
 }
 
 
+ACTIVITY = {
+    "pages_total": 1923,
+    "books": [
+        {"document": "a", "finished_at": 1790600000},
+        {"document": "b", "finished_at": None},
+        {"document": "c", "finished_at": 1790000000},
+    ],
+    "days": [
+        {"day": "2026-11-01", "pages": 5, "syncs": 1},
+        {"day": "2026-11-02", "pages": 0, "syncs": 2},
+        {"day": "2026-11-03", "pages": 0, "syncs": 0},
+        {"day": "2026-11-04", "pages": 9, "syncs": 3},
+        {"day": "2026-11-05", "pages": 1, "syncs": 1},
+    ],
+}
+
+
 class FakeSync:
     """Accept one user; optionally fail with 429 or 500."""
 
