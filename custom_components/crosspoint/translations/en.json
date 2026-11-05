@@ -85,6 +85,12 @@
       "options": {
         "manual": "Enter address manually"
       }
+    },
+    "wallpaper_mode": {
+      "options": {
+        "normal": "Normal (24-bit BMP)",
+        "transparent": "Transparent overlay (PNG with alpha)"
+      }
     }
   },
   "entity": {
@@ -145,6 +151,12 @@
     },
     "entry_not_loaded": {
       "message": "The CrossPoint configuration {title} is not loaded."
+    },
+    "no_transparency": {
+      "message": "The image {file} has no transparent pixels, so a transparent overlay would cover the whole screen. Use normal mode, or send it again with \"force\" enabled."
+    },
+    "invalid_image": {
+      "message": "The image {file} cannot be read."
     }
   },
   "services": {
@@ -191,6 +203,46 @@
         "config_entry_id": {
           "name": "E-reader",
           "description": "The CrossPoint e-reader whose library to scan."
+        }
+      }
+    },
+    "send_wallpaper": {
+      "name": "Send wallpaper",
+      "description": "Converts an image from the library to the e-reader resolution and uploads it as a sleep screen. The e-reader must be in File Transfer mode.",
+      "fields": {
+        "config_entry_id": {
+          "name": "E-reader",
+          "description": "The CrossPoint e-reader to send the wallpaper to."
+        },
+        "file": {
+          "name": "File",
+          "description": "Path of the image, relative to the wallpapers subfolder of the library."
+        },
+        "mode": {
+          "name": "Mode",
+          "description": "Normal replaces the sleep screen; transparent is drawn on top of the current screen."
+        },
+        "force": {
+          "name": "Force",
+          "description": "Send in transparent mode even if the image has no transparency."
+        }
+      }
+    },
+    "remove_wallpaper": {
+      "name": "Remove wallpaper",
+      "description": "Deletes a wallpaper sent by Home Assistant from the e-reader. The e-reader must be in File Transfer mode.",
+      "fields": {
+        "config_entry_id": {
+          "name": "E-reader",
+          "description": "The CrossPoint e-reader to remove the wallpaper from."
+        },
+        "file": {
+          "name": "File",
+          "description": "Path of the image, relative to the wallpapers subfolder of the library."
+        },
+        "forget_missing": {
+          "name": "Forget missing",
+          "description": "Stop tracking the wallpaper if it is no longer on the device."
         }
       }
     }

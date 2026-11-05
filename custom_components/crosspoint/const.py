@@ -28,6 +28,9 @@ DEFAULT_WALLPAPERS_DIR: Final = "wallpapers"
 DEFAULT_SCAN_INTERVAL_MIN: Final = 30
 DEVICE_POLL_INTERVAL_S: Final = 20
 DEFAULT_DEVICE_BOOKS_DIR: Final = "/Books"
+# Sleep screen folders read by the firmware (it picks one image at random).
+DEVICE_SLEEP_DIR: Final = "/.sleep"
+DEVICE_SLEEP_OVERLAY_DIR: Final = "/.sleep-overlay"
 
 EVENT_UPLOAD_PROGRESS: Final = f"{DOMAIN}_upload_progress"
 

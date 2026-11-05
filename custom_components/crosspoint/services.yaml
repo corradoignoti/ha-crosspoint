@@ -39,3 +39,45 @@ rescan_library:
       selector:
         config_entry:
           integration: crosspoint
+
+send_wallpaper:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: crosspoint
+    file:
+      required: true
+      example: "sea.png"
+      selector:
+        text:
+    mode:
+      default: normal
+      selector:
+        select:
+          translation_key: wallpaper_mode
+          options:
+            - normal
+            - transparent
+    force:
+      default: false
+      selector:
+        boolean:
+
+remove_wallpaper:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: crosspoint
+    file:
+      required: true
+      example: "sea.png"
+      selector:
+        text:
+    forget_missing:
+      default: false
+      selector:
+        boolean:

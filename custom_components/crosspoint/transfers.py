@@ -19,12 +19,23 @@ from .const import (
     CONF_BOOKS_DIR,
     CONF_DEVICE_BOOKS_DIR,
     CONF_LIBRARY_PATH,
+    CONF_WALLPAPERS_DIR,
     DEFAULT_DEVICE_BOOKS_DIR,
+    DEVICE_SLEEP_DIR,
+    DEVICE_SLEEP_OVERLAY_DIR,
     DOMAIN,
     EVENT_UPLOAD_PROGRESS,
     KIND_BOOK,
+    KIND_WALLPAPER,
 )
 from .store import Transfer, TransferStore, sha256_file
+from .wallpaper import (
+    MODE_TRANSPARENT,
+    WallpaperError,
+    check_transparency,
+    convert,
+    device_filename,
+)
 
 if TYPE_CHECKING:
     from . import CrossPointConfigEntry
@@ -138,6 +149,7 @@ class TransferManager:
         local: LocalFile,
         size: int,
         device_path: str,
+        mode: str | None = None,
     ) -> Transfer:
         """Record a confirmed transfer."""
         return await self._store.async_record(
@@ -147,6 +159,7 @@ class TransferManager:
             size=size,
             sent_at=dt_util.utcnow(),
             device_path=device_path,
+            mode=mode,
         )
 
     async def async_delete_on_device(
@@ -258,3 +271,95 @@ class BookManager(TransferManager):
                 )
             return await self.async_record(rel, local, len(local.data), device_path)
 
+
+class WallpaperManager(TransferManager):
+    """Wallpaper (sleep screen) operations for one config entry."""
+
+    kind = KIND_WALLPAPER
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: CrossPointConfigEntry,
+        coordinator: CrossPointDeviceCoordinator,
+        store: TransferStore,
+    ) -> None:
+        super().__init__(
+            hass,
+            entry,
+            coordinator,
+            store,
+            Path(entry.data[CONF_LIBRARY_PATH]) / entry.data[CONF_WALLPAPERS_DIR],
+        )
+
+    def _check(self, rel: str) -> bool:
+        try:
+            return check_transparency(self.resolve(rel).read_bytes())
+        except WallpaperError as err:
+            raise validation_error("invalid_image", file=rel) from err
+
+    async def async_check(self, file: str) -> bool:
+        """Return True if a library image has transparent pixels."""
+        rel = self.normalize(file)
+        return await self._hass.async_add_executor_job(self._check, rel)
+
+    async def async_send(
+        self, file: str, *, mode: str, force: bool = False
+    ) -> tuple[Transfer, bool]:
+        """Convert a library image, upload it as a sleep screen and track it.
+
+        Transparent mode on an image without transparency is refused unless
+        ``force`` is set. Returns the transfer and whether the source image
+        has transparency.
+        """
+        rel = self.normalize(file)
+        model = self._entry.runtime_data.model
+        async with self._lock:
+            await self._coordinator.async_ensure_online()
+            local = await self._hass.async_add_executor_job(self.read, rel)
+            try:
+                wallpaper = await self._hass.async_add_executor_job(
+                    convert, local.data, (model.width, model.height), mode
+                )
+            except WallpaperError as err:
+                raise validation_error("invalid_image", file=rel) from err
+            if (
+                mode == MODE_TRANSPARENT
+                and not wallpaper.has_transparency
+                and not force
+            ):
+                raise validation_error("no_transparency", file=rel)
+
+            device_dir = (
+                DEVICE_SLEEP_OVERLAY_DIR
+                if mode == MODE_TRANSPARENT
+                else DEVICE_SLEEP_DIR
+            )
+            filename = device_filename(
+                local.path.stem, local.sha256, wallpaper.extension
+            )
+            target = posixpath.join(device_dir, filename)
+            tracked = self._store.get(self.kind, rel)
+            device_path = await self.async_upload(
+                rel,
+                wallpaper.data,
+                device_dir,
+                filename,
+                tracked is not None and tracked.device_path == target,
+            )
+            if tracked and tracked.device_path != device_path:
+                # Replaced by a new conversion (other mode or modified source).
+                try:
+                    await self.async_delete_on_device(
+                        tracked.device_path, forget_missing=True
+                    )
+                except HomeAssistantError as err:
+                    _LOGGER.warning(
+                        "Could not delete the previous wallpaper %s: %s",
+                        tracked.device_path,
+                        err,
+                    )
+            transfer = await self.async_record(
+                rel, local, len(wallpaper.data), device_path, mode=mode
+            )
+            return transfer, wallpaper.has_transparency

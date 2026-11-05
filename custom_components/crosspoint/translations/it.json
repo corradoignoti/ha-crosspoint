@@ -85,6 +85,12 @@
       "options": {
         "manual": "Inserisci l'indirizzo manualmente"
       }
+    },
+    "wallpaper_mode": {
+      "options": {
+        "normal": "Normale (BMP 24 bit)",
+        "transparent": "Overlay trasparente (PNG con alpha)"
+      }
     }
   },
   "entity": {
@@ -145,6 +151,12 @@
     },
     "entry_not_loaded": {
       "message": "La configurazione CrossPoint {title} non è caricata."
+    },
+    "no_transparency": {
+      "message": "L'immagine {file} non ha pixel trasparenti, quindi un overlay trasparente coprirebbe tutto lo schermo. Usa la modalità normale, oppure inviala di nuovo con \"forza\" attivo."
+    },
+    "invalid_image": {
+      "message": "Impossibile leggere l'immagine {file}."
     }
   },
   "services": {
@@ -191,6 +203,46 @@
         "config_entry_id": {
           "name": "E-reader",
           "description": "L'e-reader CrossPoint di cui scansionare la libreria."
+        }
+      }
+    },
+    "send_wallpaper": {
+      "name": "Invia sfondo",
+      "description": "Converte un'immagine della libreria alla risoluzione dell'e-reader e la carica come schermata di riposo. L'e-reader deve essere in modalità File Transfer.",
+      "fields": {
+        "config_entry_id": {
+          "name": "E-reader",
+          "description": "L'e-reader CrossPoint a cui inviare lo sfondo."
+        },
+        "file": {
+          "name": "File",
+          "description": "Percorso dell'immagine, relativo alla sottocartella sfondi della libreria."
+        },
+        "mode": {
+          "name": "Modalità",
+          "description": "Normale sostituisce la schermata di riposo; trasparente viene disegnata sopra lo schermo corrente."
+        },
+        "force": {
+          "name": "Forza",
+          "description": "Invia in modalità trasparente anche se l'immagine non ha trasparenza."
+        }
+      }
+    },
+    "remove_wallpaper": {
+      "name": "Rimuovi sfondo",
+      "description": "Elimina dall'e-reader uno sfondo inviato da Home Assistant. L'e-reader deve essere in modalità File Transfer.",
+      "fields": {
+        "config_entry_id": {
+          "name": "E-reader",
+          "description": "L'e-reader CrossPoint da cui rimuovere lo sfondo."
+        },
+        "file": {
+          "name": "File",
+          "description": "Percorso dell'immagine, relativo alla sottocartella sfondi della libreria."
+        },
+        "forget_missing": {
+          "name": "Dimentica se mancante",
+          "description": "Smette di tracciare lo sfondo se non è più sul dispositivo."
         }
       }
     }

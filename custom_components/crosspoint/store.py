@@ -28,6 +28,7 @@ class Transfer:
     size: int
     sent_at: str  # ISO 8601, UTC
     device_path: str
+    mode: str | None = None  # wallpaper conversion mode
 
 
 def sha256_file(path: Path) -> str:
@@ -96,6 +97,7 @@ class TransferStore:
         size: int,
         sent_at: datetime,
         device_path: str,
+        mode: str | None = None,
     ) -> Transfer:
         """Record a confirmed transfer."""
         transfer = Transfer(
@@ -105,6 +107,7 @@ class TransferStore:
             size=size,
             sent_at=sent_at.isoformat(),
             device_path=device_path,
+            mode=mode,
         )
         self._transfers[self._key(kind, file)] = transfer
         await self._async_save()

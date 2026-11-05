@@ -24,7 +24,7 @@ from .coordinator import CrossPointDeviceCoordinator
 from .library import LibraryCoordinator, async_remove_library_cache
 from .services import async_setup_services
 from .store import TransferStore
-from .transfers import BookManager
+from .transfers import BookManager, WallpaperManager
 from .views import CrossPointCoverView
 
 PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR]
@@ -40,6 +40,7 @@ class CrossPointRuntimeData:
     coordinator: CrossPointDeviceCoordinator
     store: TransferStore
     books: BookManager
+    wallpapers: WallpaperManager
     library: LibraryCoordinator
 
 
@@ -69,6 +70,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: CrossPointConfigEntry) -
         coordinator=coordinator,
         store=store,
         books=BookManager(hass, entry, coordinator, store),
+        wallpapers=WallpaperManager(hass, entry, coordinator, store),
         library=LibraryCoordinator(hass, entry, store),
     )
     # An offline reader is a normal state, so the first refresh never fails.
