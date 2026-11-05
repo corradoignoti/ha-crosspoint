@@ -79,5 +79,22 @@
         "manual": "Inserisci l'indirizzo manualmente"
       }
     }
+  },
+  "entity": {
+    "binary_sensor": {
+      "online": {
+        "name": "Online"
+      }
+    },
+    "sensor": {
+      "rssi": {
+        "name": "Segnale Wi-Fi"
+      }
+    }
+  },
+  "exceptions": {
+    "device_offline": {
+      "message": "L'e-reader CrossPoint su {host} non è raggiungibile. Mettilo in modalità File Transfer e riprova."
+    }
   }
 }

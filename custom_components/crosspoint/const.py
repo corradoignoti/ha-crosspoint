@@ -25,6 +25,7 @@ DEFAULT_LIBRARY_PATH: Final = "/media/crosspoint"
 DEFAULT_BOOKS_DIR: Final = "books"
 DEFAULT_WALLPAPERS_DIR: Final = "wallpapers"
 DEFAULT_SCAN_INTERVAL_MIN: Final = 30
+DEVICE_POLL_INTERVAL_S: Final = 20
 
 
 @dataclass(frozen=True, slots=True)

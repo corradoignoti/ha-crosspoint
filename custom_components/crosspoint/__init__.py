@@ -5,12 +5,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST
+from homeassistant.const import CONF_HOST, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api.device import CrossPointDeviceClient
 from .const import CONF_MODEL, CONF_WS_PORT, DEFAULT_WS_PORT, MODELS, DeviceModel
+from .coordinator import CrossPointDeviceCoordinator
+
+PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR]
 
 
 @dataclass(slots=True)
@@ -19,6 +22,7 @@ class CrossPointRuntimeData:
 
     client: CrossPointDeviceClient
     model: DeviceModel
+    coordinator: CrossPointDeviceCoordinator
 
 
 type CrossPointConfigEntry = ConfigEntry[CrossPointRuntimeData]
@@ -31,16 +35,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: CrossPointConfigEntry) -
         entry.data[CONF_HOST],
         ws_port=entry.data.get(CONF_WS_PORT, DEFAULT_WS_PORT),
     )
+    coordinator = CrossPointDeviceCoordinator(hass, entry, client)
     entry.runtime_data = CrossPointRuntimeData(
-        client=client, model=MODELS[entry.data[CONF_MODEL]]
+        client=client, model=MODELS[entry.data[CONF_MODEL]], coordinator=coordinator
     )
+    # An offline reader is a normal state, so the first refresh never fails.
+    await coordinator.async_config_entry_first_refresh()
+
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: CrossPointConfigEntry) -> bool:
     """Unload a config entry."""
-    return True
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
 async def _async_update_listener(
