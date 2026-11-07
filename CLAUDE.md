@@ -24,6 +24,7 @@ A custom Home Assistant integration, distributed through HACS, that manages a li
   - Xteink X4: 480 x 800
   - Xteink X3: 528 x 792
   - Cross-Share: 480x800
+- The model chosen here is only the fallback: when a reader is connected, its model comes from the firmware `device` status field (e.g. `xteink_x4_classic`), since several readers can share one entry.
 - Path to the shared library folder (e.g. under /media), filled by the user via Samba or similar.
 - Recommended subfolders: one for books, one for wallpapers.
 
@@ -48,7 +49,7 @@ A custom Home Assistant integration, distributed through HACS, that manages a li
 - Several readers can share one library: the connected unit is identified by the `deviceId` returned by `GET /api/status?plugin=<name>` (stable per unit). Transfers are tracked per reader, the panel shows the status of the currently connected one, and the store keeps the list of known readers. When `deviceId` is missing the hardware `serial` from the same response is used; firmware with neither falls back to a single anonymous reader. When the configured address does not answer, UDP discovery looks for the reader again (readers usually get their IP from DHCP).
 - The hash detects whether a library file was modified after being sent.
 - The store is updated only after the device confirms success.
-- Reconciliation (when the device comes online, and with the `reconcile_device` service): tracked files that are no longer on the device are forgotten; device EPUBs under the books folder that match exactly one untracked library book by file name and size are adopted (the listing has no hash, so the stored hash is the library file's).
+- Reconciliation (when the device comes online, and with the `reconcile_device` service): tracked files that are no longer on the device are forgotten; device EPUBs in the SD card root (where books copied by hand usually are) or under the books folder that match exactly one untracked library book by file name and size are adopted (the listing has no hash, so the stored hash is the library file's).
 
 ## Book operations
 
