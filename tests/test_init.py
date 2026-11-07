@@ -156,3 +156,21 @@ async def test_unload(hass: HomeAssistant, entry):
     await _setup(hass, entry, AsyncMock(return_value=STATUS))
     assert await hass.config_entries.async_unload(entry.entry_id)
     assert entry.state is ConfigEntryState.NOT_LOADED
+
+
+async def test_connected_reader_is_identified(hass: HomeAssistant, entry):
+    get_status = AsyncMock(
+        return_value={**STATUS, "deviceId": "dev-a", "ip": "1.2.3.4"}
+    )
+    await _setup(hass, entry, get_status)
+    store = entry.runtime_data.store
+    assert store.active_device == "dev-a"
+    assert [d.device_id for d in store.devices] == ["dev-a"]
+    get_status.assert_called_with(plugin="home-assistant-crosspoint")
+
+    # Another unit shows up behind the same address.
+    get_status.return_value = {**STATUS, "deviceId": "dev-b"}
+    with patch(GET_STATUS, get_status):
+        await _tick(hass)
+    assert store.active_device == "dev-b"
+    assert {d.device_id for d in store.devices} == {"dev-a", "dev-b"}

@@ -378,6 +378,12 @@ class CrossPointPanel extends LitElement {
         <span class="device">
           ${t("device_info", { model: state.model.name, host: state.host })}
           ${state.firmware ? html` · ${t("firmware", { version: state.firmware })}` : nothing}
+          ${state.active_device
+            ? html` · ${t("reader_id", { id: state.active_device.slice(0, 8) })}`
+            : nothing}
+          ${state.devices?.length > 1
+            ? html` · ${t("known_readers", { count: state.devices.length })}`
+            : nothing}
         </span>
       </div>
       ${state.online ? nothing : html`<div class="banner">${t("offline_hint")}</div>`}

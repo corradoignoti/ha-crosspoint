@@ -45,6 +45,7 @@ A custom Home Assistant integration, distributed through HACS, that manages a li
 
 - Only files sent by the integration are tracked. The device is read only to reconcile (see below), never to build a catalog of its content.
 - Internal store (Home Assistant storage) recording, for each transfer: file, content hash, transfer date, path on the device.
+- Several readers can share one library: the connected unit is identified by the `deviceId` returned by `GET /api/status?plugin=<name>` (stable per unit). Transfers are tracked per reader, the panel shows the status of the currently connected one, and the store keeps the list of known readers. Firmware without `deviceId` falls back to a single anonymous reader.
 - The hash detects whether a library file was modified after being sent.
 - The store is updated only after the device confirms success.
 - Reconciliation (when the device comes online, and with the `reconcile_device` service): tracked files that are no longer on the device are forgotten; device EPUBs under the books folder that match exactly one untracked library book by file name and size are adopted (the listing has no hash, so the stored hash is the library file's).

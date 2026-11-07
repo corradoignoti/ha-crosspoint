@@ -87,6 +87,7 @@ def _state(
                 )
             if item.transfer:
                 data["mode"] = item.transfer.mode
+            data["installed_on"] = runtime.store.installed_on(item.kind, item.file)
             result.append(data)
         return result
 
@@ -100,6 +101,16 @@ def _state(
             "height": runtime.model.height,
         },
         "online": runtime.coordinator.online,
+        "active_device": runtime.store.active_device,
+        "devices": [
+            {
+                "device_id": d.device_id,
+                "model": d.model,
+                "last_seen": d.last_seen,
+                "last_ip": d.last_ip,
+            }
+            for d in runtime.store.devices
+        ],
         "firmware": device.status.get("version") if device else None,
         "books_dir": runtime.books.device_dir,
         "books": items(KIND_BOOK),

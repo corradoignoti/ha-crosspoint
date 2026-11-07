@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Callable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -29,6 +29,18 @@ class Transfer:
     sent_at: str  # ISO 8601, UTC
     device_path: str
     mode: str | None = None  # wallpaper conversion mode
+    device_id: str | None = None  # reader that received the file
+
+
+@dataclass(slots=True)
+class KnownDevice:
+    """A reader that was seen connected to this config entry."""
+
+    device_id: str
+    model: str | None
+    first_seen: str
+    last_seen: str
+    last_ip: str | None = None
 
 
 def sha256_file(path: Path) -> str:
@@ -53,6 +65,8 @@ class TransferStore:
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry_id}.transfers"
         )
         self._transfers: dict[str, Transfer] = {}
+        self._devices: dict[str, KnownDevice] = {}
+        self._active_device: str | None = None
         self._listeners: list[Callable[[], None]] = []
 
     @callback
@@ -61,32 +75,100 @@ class TransferStore:
         self._listeners.append(listener)
         return lambda: self._listeners.remove(listener)
 
-    @staticmethod
-    def _key(kind: str, file: str) -> str:
-        return f"{kind}:{file}"
+    def _key(self, kind: str, file: str, device_id: str | None = ...) -> str:
+        device = self._active_device if device_id is ... else device_id
+        return f"{device or ''}|{kind}:{file}"
+
+    @property
+    def active_device(self) -> str | None:
+        """Return the ID of the reader currently connected, if known."""
+        return self._active_device
+
+    @property
+    def devices(self) -> list[KnownDevice]:
+        """Return the readers seen so far, most recently seen first."""
+        return sorted(self._devices.values(), key=lambda d: d.last_seen, reverse=True)
+
+    async def async_set_active_device(
+        self, device_id: str | None, model: str | None, ip: str | None, now: datetime
+    ) -> None:
+        """Select the reader whose transfers are tracked from now on.
+
+        Transfers recorded before readers were identified (no device ID) are
+        assigned to the first reader that gets identified.
+        """
+        if device_id is None:
+            return  # firmware without an identifier: keep the current selection
+        changed = device_id != self._active_device
+        known = self._devices.get(device_id)
+        stamp = now.isoformat()
+        if known is None:
+            self._devices[device_id] = KnownDevice(device_id, model, stamp, stamp, ip)
+            changed = True
+            if not self._devices.keys() - {device_id}:
+                self._adopt_legacy(device_id)
+        else:
+            if known.last_ip != ip or known.model != model:
+                known.last_ip, known.model = ip, model
+                changed = True
+            known.last_seen = stamp
+        self._active_device = device_id
+        # last_seen alone is not worth a write: it is saved with the next change.
+        if changed:
+            await self._async_save()
+
+    def _adopt_legacy(self, device_id: str) -> None:
+        self._transfers = {
+            self._key(t.kind, t.file, device_id): replace(t, device_id=device_id)
+            if t.device_id is None
+            else t
+            for t in self._transfers.values()
+        }
 
     async def async_load(self) -> None:
         """Load the tracked transfers from disk."""
         data = await self._store.async_load() or {}
-        self._transfers = {
-            self._key(t["kind"], t["file"]): Transfer(**t)
-            for t in data.get("transfers", [])
+        self._transfers = {}
+        for raw in data.get("transfers", []):
+            transfer = Transfer(**raw)
+            self._transfers[
+                self._key(transfer.kind, transfer.file, transfer.device_id)
+            ] = transfer
+        self._devices = {
+            raw["device_id"]: KnownDevice(**raw) for raw in data.get("devices", [])
         }
+        self._active_device = data.get("active_device")
 
     async def _async_save(self) -> None:
         await self._store.async_save(
-            {"transfers": [asdict(t) for t in self._transfers.values()]}
+            {
+                "transfers": [asdict(t) for t in self._transfers.values()],
+                "devices": [asdict(d) for d in self._devices.values()],
+                "active_device": self._active_device,
+            }
         )
         for listener in list(self._listeners):
             listener()
 
     def get(self, kind: str, file: str) -> Transfer | None:
-        """Return the tracked transfer for a library file, if any."""
+        """Return the tracked transfer of a library file on the active reader."""
         return self._transfers.get(self._key(kind, file))
 
     def all(self, kind: str | None = None) -> list[Transfer]:
-        """Return all tracked transfers, optionally of one kind."""
-        return [t for t in self._transfers.values() if kind in (None, t.kind)]
+        """Return the transfers on the active reader, optionally of one kind."""
+        return [
+            t
+            for t in self._transfers.values()
+            if kind in (None, t.kind) and t.device_id == self._active_device
+        ]
+
+    def installed_on(self, kind: str, file: str) -> list[str]:
+        """Return the IDs of all known readers holding a library file."""
+        return [
+            d.device_id
+            for d in self.devices
+            if self._key(kind, file, d.device_id) in self._transfers
+        ]
 
     async def async_record(
         self,
@@ -108,6 +190,7 @@ class TransferStore:
             sent_at=sent_at.isoformat(),
             device_path=device_path,
             mode=mode,
+            device_id=self._active_device,
         )
         self._transfers[self._key(kind, file)] = transfer
         await self._async_save()

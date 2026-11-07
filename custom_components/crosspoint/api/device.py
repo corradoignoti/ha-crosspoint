@@ -97,9 +97,18 @@ class CrossPointDeviceClient:
         except aiohttp.ClientError as err:
             raise CrossPointResponseError(str(err)) from err
 
-    async def get_status(self) -> dict[str, Any]:
-        """Return the device status; raises CrossPointConnectionError if offline."""
-        text = await self._request("GET", "/api/status", timeout=STATUS_TIMEOUT)
+    async def get_status(self, plugin: str | None = None) -> dict[str, Any]:
+        """Return the device status; raises CrossPointConnectionError if offline.
+
+        With ``plugin`` the firmware also returns ``deviceId``, a stable
+        identifier of the unit (derived per plugin name).
+        """
+        text = await self._request(
+            "GET",
+            "/api/status",
+            timeout=STATUS_TIMEOUT,
+            params={"plugin": plugin} if plugin else None,
+        )
         try:
             data = json.loads(text)
         except ValueError as err:

@@ -51,6 +51,8 @@ const STRINGS = {
       "Synced with the e-reader: {removed} no longer on it, {adopted} found.",
     device_info: "{model} · {host}",
     firmware: "firmware {version}",
+    reader_id: "reader {id}",
+    known_readers: "{count} readers known",
     stats_title: "Reading stats",
     stats_no_users:
       "No reading stats users. Add one in the CrossPoint integration (Add reading stats user).",
@@ -118,6 +120,8 @@ const STRINGS = {
       "Sincronizzato con l'e-reader: {removed} non più presenti, {adopted} trovati.",
     device_info: "{model} · {host}",
     firmware: "firmware {version}",
+    reader_id: "lettore {id}",
+    known_readers: "{count} lettori noti",
     stats_title: "Statistiche di lettura",
     stats_no_users:
       "Nessun utente statistiche. Aggiungine uno nell'integrazione CrossPoint (Aggiungi utente statistiche).",

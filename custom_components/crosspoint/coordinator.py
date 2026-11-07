@@ -11,10 +11,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.util import dt as dt_util
 
 from .api.device import CrossPointDeviceClient
 from .api.errors import CrossPointConnectionError, CrossPointError
-from .const import DEVICE_POLL_INTERVAL_S, DOMAIN
+from .const import DEVICE_ID_PLUGIN, DEVICE_POLL_INTERVAL_S, DOMAIN
 
 if TYPE_CHECKING:
     from . import CrossPointConfigEntry
@@ -28,6 +29,12 @@ class DeviceState:
 
     online: bool
     status: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def device_id(self) -> str | None:
+        """Stable ID of the connected unit, if the firmware reports one."""
+        value = self.status.get("deviceId")
+        return str(value) if value else None
 
 
 class CrossPointDeviceCoordinator(DataUpdateCoordinator[DeviceState]):
@@ -67,7 +74,7 @@ class CrossPointDeviceCoordinator(DataUpdateCoordinator[DeviceState]):
     async def _async_probe(self) -> DeviceState:
         was_online = self.online
         try:
-            status = await self.client.get_status()
+            status = await self.client.get_status(plugin=DEVICE_ID_PLUGIN)
         except CrossPointError as err:
             if was_online:
                 _LOGGER.info("CrossPoint at %s went offline", self.client.host)
@@ -77,7 +84,14 @@ class CrossPointDeviceCoordinator(DataUpdateCoordinator[DeviceState]):
         if not was_online:
             _LOGGER.info("CrossPoint at %s is online", self.client.host)
         self._update_device_registry(status)
-        return DeviceState(online=True, status=status)
+        state = DeviceState(online=True, status=status)
+        await self.config_entry.runtime_data.store.async_set_active_device(
+            state.device_id,
+            status.get("device"),
+            status.get("ip"),
+            dt_util.utcnow(),
+        )
+        return state
 
     def _update_device_registry(self, status: dict[str, Any]) -> None:
         version = status.get("version")
