@@ -20,6 +20,15 @@ def auto_enable_custom_integrations(enable_custom_integrations):
 
 
 @pytest.fixture(autouse=True)
+def no_discovery():
+    """Never broadcast on the real network; tests set the replies they need."""
+    with patch(
+        "custom_components.crosspoint.coordinator.async_discover", return_value=[]
+    ) as discover:
+        yield discover
+
+
+@pytest.fixture(autouse=True)
 def isolated_cache_dir(hass, tmp_path):
     """Keep the Home Assistant cache directory (cover thumbnails) per test."""
     config_dir = tmp_path / "ha_config"

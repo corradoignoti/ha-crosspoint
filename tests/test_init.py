@@ -174,3 +174,43 @@ async def test_connected_reader_is_identified(hass: HomeAssistant, entry):
         await _tick(hass)
     assert store.active_device == "dev-b"
     assert {d.device_id for d in store.devices} == {"dev-a", "dev-b"}
+
+
+async def test_reader_found_again_at_another_address(
+    hass: HomeAssistant, entry, no_discovery
+):
+    """A reader answering on a new IP is found by discovery and identified."""
+    from custom_components.crosspoint.discovery import DiscoveredDevice
+
+    new_ip = "192.168.1.77"
+    no_discovery.return_value = [DiscoveredDevice(new_ip, "crosspoint", 81)]
+    client_hosts: list[str] = []
+
+    async def get_status(self, plugin=None):
+        client_hosts.append(self.host)
+        if self.host != new_ip:
+            raise OFFLINE
+        return {**STATUS, "deviceId": "dev-b", "ip": new_ip}
+
+    with patch(GET_STATUS, get_status):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    runtime = entry.runtime_data
+    assert runtime.coordinator.online
+    assert runtime.client.host == new_ip
+    assert runtime.store.active_device == "dev-b"
+    assert client_hosts[0] != new_ip
+
+
+async def test_rediscovery_is_throttled(hass: HomeAssistant, entry, no_discovery):
+    await _setup(hass, entry, AsyncMock(side_effect=OFFLINE))
+    assert no_discovery.call_count == 1
+    with patch(GET_STATUS, AsyncMock(side_effect=OFFLINE)):
+        await _tick(hass)
+    assert no_discovery.call_count == 1
+
+
+async def test_serial_is_the_fallback_reader_id(hass: HomeAssistant, entry):
+    await _setup(hass, entry, AsyncMock(return_value={**STATUS, "serial": "X4BW02"}))
+    assert entry.runtime_data.store.active_device == "serial:X4BW02"

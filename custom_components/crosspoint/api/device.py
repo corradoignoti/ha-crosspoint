@@ -64,11 +64,17 @@ class CrossPointDeviceClient:
         ws_port: int = DEFAULT_WS_PORT,
     ) -> None:
         self._session = session
-        self.host = host
-        self._base_url = f"http://{host}:{http_port}"
-        self._ws_url = f"ws://{host}:{ws_port}/"
+        self._http_port = http_port
+        self.set_address(host, ws_port)
         # The firmware accepts a single upload at a time.
         self._upload_lock = asyncio.Lock()
+
+    def set_address(self, host: str, ws_port: int = DEFAULT_WS_PORT) -> None:
+        """Point the client at another address (e.g. a reader found again)."""
+        self.host = host
+        self.ws_port = ws_port
+        self._base_url = f"http://{host}:{self._http_port}"
+        self._ws_url = f"ws://{host}:{ws_port}/"
 
     async def _request(
         self,

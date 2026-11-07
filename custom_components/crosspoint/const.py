@@ -33,6 +33,8 @@ DEFAULT_BOOKS_DIR: Final = "books"
 DEFAULT_WALLPAPERS_DIR: Final = "wallpapers"
 DEFAULT_SCAN_INTERVAL_MIN: Final = 30
 DEVICE_POLL_INTERVAL_S: Final = 20
+# Minimum delay between two discovery broadcasts while the reader is unreachable.
+REDISCOVERY_INTERVAL_S: Final = 60
 # Plugin name sent to /api/status; the firmware derives the unit ID from it.
 DEVICE_ID_PLUGIN: Final = "home-assistant-crosspoint"
 DEFAULT_DEVICE_BOOKS_DIR: Final = "/Books"
