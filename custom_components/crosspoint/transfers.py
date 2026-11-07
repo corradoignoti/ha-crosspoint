@@ -20,8 +20,12 @@ from .const import (
     CONF_BOOKS_DIR,
     CONF_DEVICE_BOOKS_DIR,
     CONF_LIBRARY_PATH,
+    CONF_SPLIT_CHAPTERS,
+    CONF_SPLIT_THRESHOLD,
     CONF_WALLPAPERS_DIR,
     DEFAULT_DEVICE_BOOKS_DIR,
+    DEFAULT_SPLIT_CHAPTERS,
+    DEFAULT_SPLIT_THRESHOLD,
     DEVICE_SLEEP_DIR,
     DEVICE_SLEEP_OVERLAY_DIR,
     DOMAIN,
@@ -29,6 +33,7 @@ from .const import (
     KIND_BOOK,
     KIND_WALLPAPER,
 )
+from .epub_split import split_epub
 from .store import Transfer, TransferStore, sha256_file
 from .wallpaper import (
     MODE_TRANSPARENT,
@@ -355,12 +360,35 @@ class BookManager(TransferManager):
                 removed=removed, adopted=await self._async_adopt_untracked()
             )
 
-    async def async_send(self, file: str, *, overwrite: bool = False) -> Transfer:
-        """Upload a library book to the device and track it."""
+    async def _async_prepare(self, local: LocalFile, split: bool | None) -> bytes:
+        """Return the bytes to upload: the book, with long chapters split.
+
+        The library file is never changed; the stored hash stays the one of
+        the library file so later modifications are still detected.
+        """
+        options = self._entry.options
+        if split is None:
+            split = options.get(CONF_SPLIT_CHAPTERS, DEFAULT_SPLIT_CHAPTERS)
+        if not split:
+            return local.data
+        threshold = int(options.get(CONF_SPLIT_THRESHOLD, DEFAULT_SPLIT_THRESHOLD))
+        result = await self._hass.async_add_executor_job(
+            split_epub, local.data, threshold
+        )
+        return local.data if result is None else result
+
+    async def async_send(
+        self, file: str, *, overwrite: bool = False, split: bool | None = None
+    ) -> Transfer:
+        """Upload a library book to the device and track it.
+
+        ``split`` overrides the "split long chapters" option for this send.
+        """
         rel = self.normalize(file)
         async with self._lock:
             await self._coordinator.async_ensure_online()
             local = await self._hass.async_add_executor_job(self.read, rel)
+            data = await self._async_prepare(local, split)
             tracked = self._store.get(self.kind, rel)
             filename = local.path.name
             device_path = posixpath.join(self.device_dir, filename)
@@ -369,7 +397,7 @@ class BookManager(TransferManager):
                 tracked is not None and tracked.device_path == device_path
             )
             device_path = await self.async_upload(
-                rel, local.data, self.device_dir, filename, replace
+                rel, data, self.device_dir, filename, replace
             )
             if tracked and tracked.device_path != device_path:
                 _LOGGER.warning(
@@ -378,7 +406,7 @@ class BookManager(TransferManager):
                     tracked.device_path,
                     device_path,
                 )
-            return await self.async_record(rel, local, len(local.data), device_path)
+            return await self.async_record(rel, local, len(data), device_path)
 
 
 class WallpaperManager(TransferManager):

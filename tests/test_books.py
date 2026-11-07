@@ -211,3 +211,21 @@ async def test_reconcile_adopts_book_in_sd_root(hass, entry, device, books):
     )
     assert result["adopted"] == 1
     assert entry.runtime_data.store.get("book", "Dune.epub").device_path == "/Dune.epub"
+
+
+async def test_send_splits_long_chapters(hass, entry, device, books):
+    from .test_epub_split import chapter, make_book, paragraphs
+
+    original = make_book({"a.xhtml": chapter(paragraphs(100))})
+    (books / "Long.epub").write_bytes(original)
+    response = await _call(hass, "send_book", entry, file="Long.epub")
+    sent = device.files[response["device_path"]]
+    assert sent != original
+    assert b"a_part2.xhtml" in sent
+    # The library file is untouched and its hash is the one tracked.
+    assert (books / "Long.epub").read_bytes() == original
+    tracked = entry.runtime_data.store.get("book", "Long.epub")
+    assert tracked.size == len(sent)
+
+    await _call(hass, "send_book", entry, file="Long.epub", split_chapters=False)
+    assert device.files[response["device_path"]] == original

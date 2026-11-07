@@ -63,10 +63,14 @@
         "title": "Opzioni CrossPoint",
         "data": {
           "scan_interval": "Intervallo di scansione della libreria",
-          "device_books_dir": "Cartella libri sul dispositivo"
+          "device_books_dir": "Cartella libri sul dispositivo",
+          "split_chapters": "Dividi i capitoli lunghi",
+          "split_threshold": "Soglia di divisione dei capitoli"
         },
         "data_description": {
-          "device_books_dir": "Cartella sulla scheda SD dell'e-reader in cui inviare i libri, ad esempio /Books."
+          "device_books_dir": "Cartella sulla scheda SD dell'e-reader in cui inviare i libri, ad esempio /Books.",
+          "split_chapters": "Prima dell'invio, divide i capitoli più lunghi della soglia in file più piccoli, così l'e-reader li apre più velocemente. Il file della libreria non viene mai modificato.",
+          "split_threshold": "Numero di caratteri di testo oltre il quale un capitolo viene diviso."
         }
       }
     },
@@ -222,6 +226,10 @@
         "overwrite": {
           "name": "Sovrascrivi",
           "description": "Sostituisce un file con lo stesso nome sul dispositivo, anche se non inviato da Home Assistant."
+        },
+        "split_chapters": {
+          "name": "Dividi i capitoli lunghi",
+          "description": "Divide i capitoli lunghi prima dell'invio. Se omesso, viene usata l'opzione dell'integrazione."
         }
       }
     },

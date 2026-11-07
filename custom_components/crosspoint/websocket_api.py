@@ -213,7 +213,7 @@ def _action(schema: dict, handler):
 
 async def _send_book(entry: CrossPointConfigEntry, msg: dict) -> dict:
     transfer = await entry.runtime_data.books.async_send(
-        msg["file"], overwrite=msg["overwrite"]
+        msg["file"], overwrite=msg["overwrite"], split=msg.get("split_chapters")
     )
     return {"device_path": transfer.device_path}
 
@@ -260,6 +260,7 @@ ws_send_book = _action(
         vol.Required("type"): "crosspoint/send_book",
         **_FILE,
         vol.Optional("overwrite", default=False): bool,
+        vol.Optional("split_chapters"): bool,
     },
     _send_book,
 )

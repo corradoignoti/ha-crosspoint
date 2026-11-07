@@ -14,6 +14,8 @@ CONF_BOOKS_DIR: Final = "books_dir"
 CONF_WALLPAPERS_DIR: Final = "wallpapers_dir"
 CONF_SCAN_INTERVAL: Final = "scan_interval"
 CONF_DEVICE_BOOKS_DIR: Final = "device_books_dir"
+CONF_SPLIT_CHAPTERS: Final = "split_chapters"
+CONF_SPLIT_THRESHOLD: Final = "split_threshold"
 CONF_SYNC_URL: Final = "url"
 CONF_SYNC_USERNAME: Final = "username"
 CONF_SYNC_KEY: Final = "key"
@@ -38,6 +40,9 @@ REDISCOVERY_INTERVAL_S: Final = 60
 # Plugin name sent to /api/status; the firmware derives the unit ID from it.
 DEVICE_ID_PLUGIN: Final = "home-assistant-crosspoint"
 DEFAULT_DEVICE_BOOKS_DIR: Final = "/Books"
+# Long chapters are split before sending (see epub_split.py).
+DEFAULT_SPLIT_CHAPTERS: Final = True
+DEFAULT_SPLIT_THRESHOLD: Final = 15_000  # characters of visible text
 # Sleep screen folders read by the firmware (it picks one image at random).
 DEVICE_SLEEP_DIR: Final = "/.sleep"
 DEVICE_SLEEP_OVERLAY_DIR: Final = "/.sleep-overlay"

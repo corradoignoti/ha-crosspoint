@@ -57,6 +57,15 @@ A custom Home Assistant integration, distributed through HACS, that manages a li
 - Remove: request deletion through the web server (the firmware supports deleting files on the SD card). The book is marked as removed only after confirmation.
 - No operation is possible while the device is offline.
 
+## Chapter splitting
+
+- Why: the firmware handles one spine item at a time. It inflates the whole XHTML file to the SD card and lays out all its pages before showing the first one, and redoes the layout after every font or layout change. Books with a few huge XHTML files (e.g. Project Gutenberg) make the reader wait a long time.
+- Before sending (`epub_split.py`, option on by default, threshold 15,000 characters of visible text as in jtvargas/crosspoint-app), XHTML spine items above the threshold are split on a copy of the EPUB; the library file is never changed and the stored hash stays the library file's.
+- Cut points: top-level headings (h1-h3) when there are at least two, merging small adjacent sections; sections still above the threshold, or files without headings, are cut between blocks by text size. Wrappers (div/section) longer than the threshold are opened so the split can happen inside them.
+- Part 1 keeps the original file name; the other parts are new manifest items placed right after it in the spine. Links (XHTML, NCX, nav, OPF guide) to fragments that moved are rewritten.
+- Left untouched: books with `META-INF/encryption.xml`, fixed-layout books, nav documents, and any file that fails to parse.
+- Known limit: adoption during reconciliation matches the library file size, so a split book is not re-adopted if the store is lost.
+
 ## Wallpapers
 
 - Source: image files from the wallpapers subfolder.

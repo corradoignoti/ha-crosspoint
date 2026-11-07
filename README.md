@@ -28,6 +28,15 @@ keeping track of what has been installed on the device.
   after it was sent. Both tabs have a search box.
 - **Books**: send EPUB files to the e-reader and remove them again. Title,
   author and cover are read from the EPUB metadata.
+- **Chapter splitting**: before sending, chapters longer than a threshold
+  (15,000 characters of text by default) are split into smaller files. The
+  reader lays out a whole chapter file before showing its first page, and again
+  after every font or layout change, so books with a few huge files (common
+  with Project Gutenberg) open much faster once split. Cuts are made at
+  headings when possible, otherwise between paragraphs; links and the table of
+  contents are updated. Only the copy sent to the reader is changed, never the
+  library file. Books with DRM or encrypted fonts and fixed-layout books are
+  sent unchanged.
 - **Wallpapers**: images are resized, cropped and converted to the screen
   resolution of your model, then sent as a sleep screen. Two modes:
   - *Normal*: opaque 24-bit BMP with dithering.
@@ -54,7 +63,7 @@ the books or wallpapers subfolder of the library.
 
 | Service                 | Description                                                                 |
 |-------------------------|-----------------------------------------------------------------------------|
-| `send_book`             | Upload a book. `overwrite` replaces a file not sent by Home Assistant.      |
+| `send_book`             | Upload a book. `overwrite` replaces a file not sent by Home Assistant; `split_chapters` overrides the chapter splitting option for this send. |
 | `remove_book`           | Delete a book sent by Home Assistant. `forget_missing` stops tracking it.   |
 | `send_wallpaper`        | Convert and upload an image. `mode`: `normal` or `transparent`; `force` sends a transparent overlay even without transparency. |
 | `remove_wallpaper`      | Delete a wallpaper sent by Home Assistant.                                  |
@@ -89,6 +98,8 @@ Afterwards, **Configure** on the integration lets you change:
 - **Library scan interval** (default 30 minutes).
 - **Books folder on the device**: where books are sent on the SD card (default
   `/Books`).
+- **Split long chapters** (default on) and the **chapter split threshold** in
+  characters of text (default 15,000).
 
 Address, model and library folder can be changed with **Reconfigure**.
 

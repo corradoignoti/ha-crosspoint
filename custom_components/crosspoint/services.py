@@ -29,6 +29,7 @@ ATTR_OVERWRITE = "overwrite"
 ATTR_FORGET_MISSING = "forget_missing"
 ATTR_MODE = "mode"
 ATTR_FORCE = "force"
+ATTR_SPLIT_CHAPTERS = "split_chapters"
 
 SERVICE_SEND_BOOK = "send_book"
 SERVICE_REMOVE_BOOK = "remove_book"
@@ -43,7 +44,11 @@ _BASE = {
     vol.Required(ATTR_FILE): cv.string,
 }
 SEND_BOOK_SCHEMA = vol.Schema(
-    {**_BASE, vol.Optional(ATTR_OVERWRITE, default=False): cv.boolean}
+    {
+        **_BASE,
+        vol.Optional(ATTR_OVERWRITE, default=False): cv.boolean,
+        vol.Optional(ATTR_SPLIT_CHAPTERS): cv.boolean,
+    }
 )
 REMOVE_BOOK_SCHEMA = vol.Schema(
     {**_BASE, vol.Optional(ATTR_FORGET_MISSING, default=False): cv.boolean}
@@ -83,7 +88,9 @@ def async_setup_services(hass: HomeAssistant) -> None:
     async def send_book(call: ServiceCall) -> ServiceResponse:
         entry = _get_entry(hass, call)
         transfer = await entry.runtime_data.books.async_send(
-            call.data[ATTR_FILE], overwrite=call.data[ATTR_OVERWRITE]
+            call.data[ATTR_FILE],
+            overwrite=call.data[ATTR_OVERWRITE],
+            split=call.data.get(ATTR_SPLIT_CHAPTERS),
         )
         return {"device_path": transfer.device_path, "sha256": transfer.sha256}
 

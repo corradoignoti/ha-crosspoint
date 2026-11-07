@@ -19,6 +19,7 @@ from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
+    BooleanSelector,
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
@@ -46,6 +47,8 @@ from .const import (
     CONF_LIBRARY_PATH,
     CONF_MODEL,
     CONF_SCAN_INTERVAL,
+    CONF_SPLIT_CHAPTERS,
+    CONF_SPLIT_THRESHOLD,
     CONF_SYNC_KEY,
     CONF_SYNC_URL,
     CONF_SYNC_USERNAME,
@@ -57,6 +60,8 @@ from .const import (
     DEFAULT_LIBRARY_PATH,
     DEFAULT_MODEL,
     DEFAULT_SCAN_INTERVAL_MIN,
+    DEFAULT_SPLIT_CHAPTERS,
+    DEFAULT_SPLIT_THRESHOLD,
     DEFAULT_SYNC_URL,
     DEFAULT_WALLPAPERS_DIR,
     DEFAULT_WS_PORT,
@@ -357,6 +362,8 @@ class CrossPointOptionsFlow(OptionsFlow):
                     data={
                         CONF_SCAN_INTERVAL: int(user_input[CONF_SCAN_INTERVAL]),
                         CONF_DEVICE_BOOKS_DIR: device_dir,
+                        CONF_SPLIT_CHAPTERS: bool(user_input[CONF_SPLIT_CHAPTERS]),
+                        CONF_SPLIT_THRESHOLD: int(user_input[CONF_SPLIT_THRESHOLD]),
                     }
                 )
         options = {**self.config_entry.options, **(user_input or {})}
@@ -385,6 +392,25 @@ class CrossPointOptionsFlow(OptionsFlow):
                             CONF_DEVICE_BOOKS_DIR, DEFAULT_DEVICE_BOOKS_DIR
                         ),
                     ): TextSelector(),
+                    vol.Required(
+                        CONF_SPLIT_CHAPTERS,
+                        default=options.get(
+                            CONF_SPLIT_CHAPTERS, DEFAULT_SPLIT_CHAPTERS
+                        ),
+                    ): BooleanSelector(),
+                    vol.Required(
+                        CONF_SPLIT_THRESHOLD,
+                        default=options.get(
+                            CONF_SPLIT_THRESHOLD, DEFAULT_SPLIT_THRESHOLD
+                        ),
+                    ): NumberSelector(
+                        NumberSelectorConfig(
+                            min=2_000,
+                            max=200_000,
+                            step=1_000,
+                            mode=NumberSelectorMode.BOX,
+                        )
+                    ),
                 }
             ),
         )

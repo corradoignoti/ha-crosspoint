@@ -63,10 +63,14 @@
         "title": "CrossPoint options",
         "data": {
           "scan_interval": "Library scan interval",
-          "device_books_dir": "Books folder on the device"
+          "device_books_dir": "Books folder on the device",
+          "split_chapters": "Split long chapters",
+          "split_threshold": "Chapter split threshold"
         },
         "data_description": {
-          "device_books_dir": "Folder on the e-reader SD card where books are sent, for example /Books."
+          "device_books_dir": "Folder on the e-reader SD card where books are sent, for example /Books.",
+          "split_chapters": "Before sending, split chapters longer than the threshold into smaller files, so the e-reader opens them faster. The library file is never changed.",
+          "split_threshold": "Characters of text above which a chapter is split."
         }
       }
     },
@@ -222,6 +226,10 @@
         "overwrite": {
           "name": "Overwrite",
           "description": "Replace a file with the same name on the device, even if it was not sent by Home Assistant."
+        },
+        "split_chapters": {
+          "name": "Split long chapters",
+          "description": "Split long chapters before sending. If omitted, the integration option is used."
         }
       }
     },

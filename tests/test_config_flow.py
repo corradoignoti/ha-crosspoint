@@ -16,6 +16,8 @@ from custom_components.crosspoint.const import (
     CONF_LIBRARY_PATH,
     CONF_MODEL,
     CONF_SCAN_INTERVAL,
+    CONF_SPLIT_CHAPTERS,
+    CONF_SPLIT_THRESHOLD,
     CONF_WALLPAPERS_DIR,
     CONF_WS_PORT,
     DOMAIN,
@@ -197,10 +199,21 @@ async def test_options_flow(hass: HomeAssistant, library):
     )
     assert result["errors"] == {"base": "invalid_device_folder"}
     result = await hass.config_entries.options.async_configure(
-        result["flow_id"], {CONF_SCAN_INTERVAL: 10, CONF_DEVICE_BOOKS_DIR: "ebooks/"}
+        result["flow_id"],
+        {
+            CONF_SCAN_INTERVAL: 10,
+            CONF_DEVICE_BOOKS_DIR: "ebooks/",
+            CONF_SPLIT_CHAPTERS: False,
+            CONF_SPLIT_THRESHOLD: 20000.0,
+        },
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options == {CONF_SCAN_INTERVAL: 10, CONF_DEVICE_BOOKS_DIR: "/ebooks"}
+    assert entry.options == {
+        CONF_SCAN_INTERVAL: 10,
+        CONF_DEVICE_BOOKS_DIR: "/ebooks",
+        CONF_SPLIT_CHAPTERS: False,
+        CONF_SPLIT_THRESHOLD: 20000,
+    }
 
 
 async def test_reconfigure(hass: HomeAssistant, library):
