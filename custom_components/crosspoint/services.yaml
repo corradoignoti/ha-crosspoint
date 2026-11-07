@@ -14,6 +14,9 @@ send_book:
       default: false
       selector:
         boolean:
+    optimize:
+      selector:
+        boolean:
     split_chapters:
       selector:
         boolean:

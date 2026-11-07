@@ -229,3 +229,47 @@ async def test_send_splits_long_chapters(hass, entry, device, books):
 
     await _call(hass, "send_book", entry, file="Long.epub", split_chapters=False)
     assert device.files[response["device_path"]] == original
+
+
+async def test_send_optimizes_and_caches(hass, entry, device, books, monkeypatch):
+    from custom_components.crosspoint import transfers
+
+    from .test_epub_optimize import image, make_book
+
+    original = make_book(
+        body='<p><img src="../b.png"/></p>',
+        # Small enough for the fake device (1 MB request limit).
+        files={"OEBPS/b.png": image("PNG", (500, 500))},
+    )
+    (books / "Pics.epub").write_bytes(original)
+    events = async_capture_events(hass, EVENT_UPLOAD_PROGRESS)
+    calls = []
+    prepare = transfers.prepare_book
+    monkeypatch.setattr(
+        transfers,
+        "prepare_book",
+        lambda *a, **kw: calls.append(kw) or prepare(*a, **kw),
+    )
+
+    response = await _call(hass, "send_book", entry, file="Pics.epub")
+    sent = device.files[response["device_path"]]
+    assert len(sent) < len(original)
+    assert b"OEBPS/b.jpg" in sent
+    assert events[0].data["preparing"] is True
+    assert calls == [{"screen": (480, 800), "threshold": 15_000}]
+    assert (books / "Pics.epub").read_bytes() == original
+
+    # Sending again uses the cached copy.
+    await _call(hass, "send_book", entry, file="Pics.epub")
+    assert len(calls) == 1
+    assert device.files[response["device_path"]] == sent
+
+    await _call(
+        hass,
+        "send_book",
+        entry,
+        file="Pics.epub",
+        optimize=False,
+        split_chapters=False,
+    )
+    assert device.files[response["device_path"]] == original

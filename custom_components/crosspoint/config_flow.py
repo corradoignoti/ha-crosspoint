@@ -46,6 +46,7 @@ from .const import (
     CONF_DEVICE_BOOKS_DIR,
     CONF_LIBRARY_PATH,
     CONF_MODEL,
+    CONF_OPTIMIZE_EPUB,
     CONF_SCAN_INTERVAL,
     CONF_SPLIT_CHAPTERS,
     CONF_SPLIT_THRESHOLD,
@@ -59,6 +60,7 @@ from .const import (
     DEFAULT_HOST,
     DEFAULT_LIBRARY_PATH,
     DEFAULT_MODEL,
+    DEFAULT_OPTIMIZE_EPUB,
     DEFAULT_SCAN_INTERVAL_MIN,
     DEFAULT_SPLIT_CHAPTERS,
     DEFAULT_SPLIT_THRESHOLD,
@@ -362,6 +364,7 @@ class CrossPointOptionsFlow(OptionsFlow):
                     data={
                         CONF_SCAN_INTERVAL: int(user_input[CONF_SCAN_INTERVAL]),
                         CONF_DEVICE_BOOKS_DIR: device_dir,
+                        CONF_OPTIMIZE_EPUB: bool(user_input[CONF_OPTIMIZE_EPUB]),
                         CONF_SPLIT_CHAPTERS: bool(user_input[CONF_SPLIT_CHAPTERS]),
                         CONF_SPLIT_THRESHOLD: int(user_input[CONF_SPLIT_THRESHOLD]),
                     }
@@ -392,6 +395,10 @@ class CrossPointOptionsFlow(OptionsFlow):
                             CONF_DEVICE_BOOKS_DIR, DEFAULT_DEVICE_BOOKS_DIR
                         ),
                     ): TextSelector(),
+                    vol.Required(
+                        CONF_OPTIMIZE_EPUB,
+                        default=options.get(CONF_OPTIMIZE_EPUB, DEFAULT_OPTIMIZE_EPUB),
+                    ): BooleanSelector(),
                     vol.Required(
                         CONF_SPLIT_CHAPTERS,
                         default=options.get(

@@ -34,20 +34,30 @@ import logging
 import posixpath
 import re
 import zipfile
-from collections.abc import Iterable
 from dataclasses import dataclass, field
-from urllib.parse import quote, unquote
+from urllib.parse import unquote
 from xml.etree import ElementTree as ET
+
+from .epub_package import TAG_RE as _TAG_RE
+from .epub_package import XHTML_TYPES as _XHTML_TYPES
+from .epub_package import SkipError as _SkipError
+from .epub_package import attrs as _attrs
+from .epub_package import manifest as _manifest
+from .epub_package import opf_path as _opf_path
+from .epub_package import relative as _relative
+from .epub_package import spine as _spine
+from .epub_package import unique as _unique
+from .epub_package import write_archive
 
 _LOGGER = logging.getLogger(__name__)
 
+# Bump when the output changes, so cached copies are rebuilt.
+SPLITTER_VERSION = 1
 DEFAULT_SPLIT_THRESHOLD = 15_000  # characters of visible text, as crosspoint-app
 
 _XHTML_NS = "http://www.w3.org/1999/xhtml"
 _XML_NS = "http://www.w3.org/XML/1998/namespace"
-_CONTAINER_NS = "urn:oasis:names:tc:opendocument:xmlns:container"
-_XHTML_TYPES = {"application/xhtml+xml", "text/html"}
-_LINKED_TYPES = _XHTML_TYPES | {"application/x-dtbncx+xml"}
+_LINKED_TYPES = {"application/xhtml+xml", "text/html"} | {"application/x-dtbncx+xml"}
 # Refuse to process archives larger than this once inflated.
 _MAX_TOTAL_BYTES = 256 * 1024 * 1024
 
@@ -59,18 +69,12 @@ _VOID = {
     "link", "meta", "source", "track", "wbr",
 }  # fmt: skip
 
-_TAG_RE = re.compile(r"<(item|itemref)\b[^>]*?(?:/>|>\s*</\1\s*>|>)", re.S)
-_ATTR_RE = re.compile(r"([\w:.-]+)\s*=\s*([\"'])(.*?)\2", re.S)
 _LINK_RE = re.compile(r"(\b(?:xlink:)?(?:href|src)\s*=\s*)([\"'])(.*?)\2", re.S)
 _ENTITY_RE = re.compile(r"&([A-Za-z][A-Za-z0-9]*);")
 _XML_DECL_RE = re.compile(r"^\s*<\?xml[^>]*\?>", re.S)
 _DOCTYPE_RE = re.compile(r"<!DOCTYPE[^>\[]*(?:\[[^\]]*\])?\s*>", re.I | re.S)
 _ENCODING_RE = re.compile(rb"^\s*<\?xml[^>]*encoding\s*=\s*[\"']([\w.-]+)[\"']")
 _FIXED_LAYOUT_RE = re.compile(r"rendition:layout[^<]*pre-paginated")
-
-
-class _SkipError(Exception):
-    """The book or one of its files cannot be split safely."""
 
 
 @dataclass(slots=True)
@@ -101,7 +105,7 @@ def _split_epub(data: bytes, threshold: int) -> bytes | None:
         names = {i.filename for i in infos}
         if "META-INF/encryption.xml" in names:
             raise _SkipError("encrypted resources")
-        opf_path = _opf_path(archive.read("META-INF/container.xml"))
+        opf_path = _opf_path(archive)
         opf = archive.read(opf_path).decode("utf-8")
         if _FIXED_LAYOUT_RE.search(opf):
             raise _SkipError("fixed layout")
@@ -162,43 +166,7 @@ def _split_epub(data: bytes, threshold: int) -> bytes | None:
             len(splits),
             sum(len(s.parts) for s in splits),
         )
-        return _write_archive(archive, infos, changed)
-
-
-def _opf_path(container: bytes) -> str:
-    root = ET.fromstring(container)
-    rootfile = root.find(f".//{{{_CONTAINER_NS}}}rootfile")
-    if rootfile is None or not rootfile.get("full-path"):
-        raise _SkipError("no package document")
-    return rootfile.get("full-path", "")
-
-
-def _attrs(tag: str) -> dict[str, str]:
-    return {m.group(1): html.unescape(m.group(3)) for m in _ATTR_RE.finditer(tag)}
-
-
-def _manifest(opf: str, opf_dir: str) -> dict[str, dict[str, str]]:
-    """Return the manifest items keyed by archive path."""
-    items: dict[str, dict[str, str]] = {}
-    for match in _TAG_RE.finditer(opf):
-        if match.group(1) != "item":
-            continue
-        attrs = _attrs(match.group(0))
-        href = attrs.get("href")
-        if not href or not attrs.get("id"):
-            continue
-        attrs["path"] = posixpath.normpath(posixpath.join(opf_dir, unquote(href)))
-        items[attrs["path"]] = attrs
-    return items
-
-
-def _spine(opf: str) -> Iterable[tuple[str, str]]:
-    """Yield (idref, properties) of the spine items in reading order."""
-    for match in _TAG_RE.finditer(opf):
-        if match.group(1) == "itemref":
-            attrs = _attrs(match.group(0))
-            if attrs.get("idref"):
-                yield attrs["idref"], attrs.get("properties", "")
+        return write_archive(archive, changed)
 
 
 def _update_opf(
@@ -235,18 +203,6 @@ def _update_opf(
         )
 
     return _TAG_RE.sub(insert, opf)
-
-
-def _relative(path: str, base_dir: str) -> str:
-    return quote(posixpath.relpath(path, base_dir or "."), safe="/")
-
-
-def _unique(name: str, taken: set[str | None]) -> str:
-    candidate, n = name, 1
-    while candidate in taken:
-        n += 1
-        candidate = f"{name}-{n}"
-    return candidate
 
 
 # --- XHTML documents --------------------------------------------------------
@@ -595,26 +551,3 @@ def _rewrite_links(
         new_text = _LINK_RE.sub(repl, text)
         if new_text != text:
             changed[path] = new_text.encode("utf-8")
-
-
-def _write_archive(
-    archive: zipfile.ZipFile, infos: list[zipfile.ZipInfo], changed: dict[str, bytes]
-) -> bytes:
-    out = io.BytesIO()
-    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as dst:
-        # The mimetype entry must come first and be stored uncompressed.
-        dst.writestr(
-            zipfile.ZipInfo("mimetype"), b"application/epub+zip", zipfile.ZIP_STORED
-        )
-        written = {"mimetype"}
-        for info in infos:
-            if info.filename in written:
-                continue
-            data = changed.pop(info.filename, None)
-            if data is None:
-                data = archive.read(info)
-            dst.writestr(info, data, info.compress_type)
-            written.add(info.filename)
-        for name, data in changed.items():
-            dst.writestr(name, data, zipfile.ZIP_DEFLATED)
-    return out.getvalue()

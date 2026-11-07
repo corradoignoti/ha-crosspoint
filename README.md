@@ -28,6 +28,14 @@ keeping track of what has been installed on the device.
   after it was sent. Both tabs have a search box.
 - **Books**: send EPUB files to the e-reader and remove them again. Title,
   author and cover are read from the EPUB metadata.
+- **EPUB optimization**: before sending, images are converted to grayscale
+  JPEG sized for the reader's screen (transparent areas on white), embedded
+  fonts are removed (the reader always uses its own fonts), SVG-wrapped
+  pictures become plain images and a defensive stylesheet keeps wide images and
+  tables on screen. This mirrors the "Optimize EPUB" option of the CrossPoint
+  file manager: books get smaller and faster to send. The result is used only
+  when it is smaller; books with DRM are sent unchanged. Prepared copies are
+  cached, so sending a book again is immediate.
 - **Chapter splitting**: before sending, chapters longer than a threshold
   (15,000 characters of text by default) are split into smaller files. The
   reader lays out a whole chapter file before showing its first page, and again
@@ -63,7 +71,7 @@ the books or wallpapers subfolder of the library.
 
 | Service                 | Description                                                                 |
 |-------------------------|-----------------------------------------------------------------------------|
-| `send_book`             | Upload a book. `overwrite` replaces a file not sent by Home Assistant; `split_chapters` overrides the chapter splitting option for this send. |
+| `send_book`             | Upload a book. `overwrite` replaces a file not sent by Home Assistant; `optimize` and `split_chapters` override the EPUB optimization and chapter splitting options for this send. |
 | `remove_book`           | Delete a book sent by Home Assistant. `forget_missing` stops tracking it.   |
 | `send_wallpaper`        | Convert and upload an image. `mode`: `normal` or `transparent`; `force` sends a transparent overlay even without transparency. |
 | `remove_wallpaper`      | Delete a wallpaper sent by Home Assistant.                                  |
@@ -98,6 +106,7 @@ Afterwards, **Configure** on the integration lets you change:
 - **Library scan interval** (default 30 minutes).
 - **Books folder on the device**: where books are sent on the SD card (default
   `/Books`).
+- **Optimize EPUB** (default on).
 - **Split long chapters** (default on) and the **chapter split threshold** in
   characters of text (default 15,000).
 

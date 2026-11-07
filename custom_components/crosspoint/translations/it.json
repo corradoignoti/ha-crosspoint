@@ -64,13 +64,15 @@
         "data": {
           "scan_interval": "Intervallo di scansione della libreria",
           "device_books_dir": "Cartella libri sul dispositivo",
+          "optimize_epub": "Ottimizza EPUB",
           "split_chapters": "Dividi i capitoli lunghi",
           "split_threshold": "Soglia di divisione dei capitoli"
         },
         "data_description": {
           "device_books_dir": "Cartella sulla scheda SD dell'e-reader in cui inviare i libri, ad esempio /Books.",
           "split_chapters": "Prima dell'invio, divide i capitoli più lunghi della soglia in file più piccoli, così l'e-reader li apre più velocemente. Il file della libreria non viene mai modificato.",
-          "split_threshold": "Numero di caratteri di testo oltre il quale un capitolo viene diviso."
+          "split_threshold": "Numero di caratteri di testo oltre il quale un capitolo viene diviso.",
+          "optimize_epub": "Prima dell'invio, converte le immagini in JPEG in scala di grigi adatti allo schermo e rimuove i font incorporati (il lettore usa i propri), così i libri sono più piccoli e più veloci da inviare. Il file della libreria non viene mai modificato."
         }
       }
     },
@@ -226,6 +228,10 @@
         "overwrite": {
           "name": "Sovrascrivi",
           "description": "Sostituisce un file con lo stesso nome sul dispositivo, anche se non inviato da Home Assistant."
+        },
+        "optimize": {
+          "name": "Ottimizza EPUB",
+          "description": "Ottimizza il libro (immagini e font) prima dell'invio. Se omesso, viene usata l'opzione dell'integrazione."
         },
         "split_chapters": {
           "name": "Dividi i capitoli lunghi",

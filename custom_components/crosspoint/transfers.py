@@ -7,6 +7,7 @@ import logging
 import posixpath
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING
 
@@ -20,10 +21,12 @@ from .const import (
     CONF_BOOKS_DIR,
     CONF_DEVICE_BOOKS_DIR,
     CONF_LIBRARY_PATH,
+    CONF_OPTIMIZE_EPUB,
     CONF_SPLIT_CHAPTERS,
     CONF_SPLIT_THRESHOLD,
     CONF_WALLPAPERS_DIR,
     DEFAULT_DEVICE_BOOKS_DIR,
+    DEFAULT_OPTIMIZE_EPUB,
     DEFAULT_SPLIT_CHAPTERS,
     DEFAULT_SPLIT_THRESHOLD,
     DEVICE_SLEEP_DIR,
@@ -33,7 +36,8 @@ from .const import (
     KIND_BOOK,
     KIND_WALLPAPER,
 )
-from .epub_split import split_epub
+from .epub_optimize import OPTIMIZER_VERSION, optimize_epub
+from .epub_split import SPLITTER_VERSION, split_epub
 from .store import Transfer, TransferStore, sha256_file
 from .wallpaper import (
     MODE_TRANSPARENT,
@@ -70,6 +74,34 @@ class LocalFile:
     path: Path
     data: bytes
     sha256: str
+
+
+def prepare_book(
+    data: bytes,
+    *,
+    screen: tuple[int, int] | None,
+    threshold: int | None,
+) -> bytes:
+    """Optimize the book for a screen and split its long chapters (blocking).
+
+    Each step is skipped when its setting is None, and a step that cannot
+    improve the book leaves it unchanged.
+    """
+    if screen is not None:
+        data = optimize_epub(data, screen) or data
+    if threshold is not None:
+        data = split_epub(data, threshold) or data
+    return data
+
+
+def _write_cache(path: Path, data: bytes) -> None:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_bytes(data)
+        tmp.replace(path)
+    except OSError as err:
+        _LOGGER.debug("Could not cache the prepared book %s: %s", path, err)
 
 
 def translated_error(key: str, **placeholders: str) -> HomeAssistantError:
@@ -246,6 +278,20 @@ class TransferManager:
             await self._coordinator.async_ensure_online()
             return ReconcileResult(removed=await self._async_forget_gone())
 
+    def _fire_progress(
+        self, rel: str, received: int = 0, total: int = 0, *, preparing: bool = False
+    ) -> None:
+        data = {
+            "entry_id": self._entry.entry_id,
+            "kind": self.kind,
+            "file": rel,
+            "received": received,
+            "total": total,
+        }
+        if preparing:
+            data["preparing"] = True
+        self._hass.bus.async_fire(EVENT_UPLOAD_PROGRESS, data)
+
     def _progress_reporter(self, rel: str) -> Callable[[int, int], None]:
         last = -_PROGRESS_STEP
 
@@ -254,16 +300,7 @@ class TransferManager:
             if received - last < _PROGRESS_STEP and received < total:
                 return
             last = received
-            self._hass.bus.async_fire(
-                EVENT_UPLOAD_PROGRESS,
-                {
-                    "entry_id": self._entry.entry_id,
-                    "kind": self.kind,
-                    "file": rel,
-                    "received": received,
-                    "total": total,
-                },
-            )
+            self._fire_progress(rel, received, total)
 
         return report
 
@@ -360,35 +397,67 @@ class BookManager(TransferManager):
                 removed=removed, adopted=await self._async_adopt_untracked()
             )
 
-    async def _async_prepare(self, local: LocalFile, split: bool | None) -> bytes:
-        """Return the bytes to upload: the book, with long chapters split.
+    async def _async_prepare(
+        self, rel: str, local: LocalFile, optimize: bool | None, split: bool | None
+    ) -> bytes:
+        """Return the bytes to upload: the book optimized and split as set.
 
         The library file is never changed; the stored hash stays the one of
-        the library file so later modifications are still detected.
+        the library file so later modifications are still detected. Prepared
+        copies are cached by book hash and settings, so sending the same book
+        again (or to another reader of the same model) is immediate.
         """
         options = self._entry.options
+        if optimize is None:
+            optimize = options.get(CONF_OPTIMIZE_EPUB, DEFAULT_OPTIMIZE_EPUB)
         if split is None:
             split = options.get(CONF_SPLIT_CHAPTERS, DEFAULT_SPLIT_CHAPTERS)
-        if not split:
+        if not optimize and not split:
             return local.data
         threshold = int(options.get(CONF_SPLIT_THRESHOLD, DEFAULT_SPLIT_THRESHOLD))
-        result = await self._hass.async_add_executor_job(
-            split_epub, local.data, threshold
+        model = self._entry.runtime_data.model
+        screen = (model.width, model.height)
+        key = [local.sha256]
+        if optimize:
+            key.append(f"o{OPTIMIZER_VERSION}-{screen[0]}x{screen[1]}")
+        if split:
+            key.append(f"s{SPLITTER_VERSION}-{threshold}")
+        cached = self._entry.runtime_data.library.prepared_dir / (
+            "-".join(key) + ".epub"
         )
-        return local.data if result is None else result
+        if await self._hass.async_add_executor_job(cached.is_file):
+            return await self._hass.async_add_executor_job(cached.read_bytes)
+        self._fire_progress(rel, preparing=True)
+        data = await self._hass.async_add_executor_job(
+            partial(
+                prepare_book,
+                local.data,
+                screen=screen if optimize else None,
+                threshold=threshold if split else None,
+            )
+        )
+        if data is not local.data:
+            await self._hass.async_add_executor_job(_write_cache, cached, data)
+        return data
 
     async def async_send(
-        self, file: str, *, overwrite: bool = False, split: bool | None = None
+        self,
+        file: str,
+        *,
+        overwrite: bool = False,
+        optimize: bool | None = None,
+        split: bool | None = None,
     ) -> Transfer:
         """Upload a library book to the device and track it.
 
-        ``split`` overrides the "split long chapters" option for this send.
+        ``optimize`` and ``split`` override the "optimize EPUB" and "split
+        long chapters" options for this send.
         """
         rel = self.normalize(file)
         async with self._lock:
             await self._coordinator.async_ensure_online()
             local = await self._hass.async_add_executor_job(self.read, rel)
-            data = await self._async_prepare(local, split)
+            data = await self._async_prepare(rel, local, optimize, split)
             tracked = self._store.get(self.kind, rel)
             filename = local.path.name
             device_path = posixpath.join(self.device_dir, filename)

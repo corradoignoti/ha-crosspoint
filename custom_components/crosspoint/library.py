@@ -135,6 +135,10 @@ class LibraryCoordinator(DataUpdateCoordinator[LibraryData]):
             KIND_WALLPAPER: root / entry.data[CONF_WALLPAPERS_DIR],
         }
         self.covers_dir = Path(hass.config.cache_path(DOMAIN, entry.entry_id, "covers"))
+        # Books prepared for sending (optimized, split), named by the book hash.
+        self.prepared_dir = Path(
+            hass.config.cache_path(DOMAIN, entry.entry_id, "prepared")
+        )
         self._transfers = transfers
         self._cache_store: Store[dict[str, Any]] = Store(
             hass, CACHE_VERSION, f"{DOMAIN}.{entry.entry_id}.library"
@@ -207,6 +211,7 @@ class LibraryCoordinator(DataUpdateCoordinator[LibraryData]):
                 found[kind][rel] = item
                 new_cache[key] = item
         self._prune_covers(new_cache)
+        self._prune_prepared(new_cache)
         return (
             LibraryData(books=found[KIND_BOOK], wallpapers=found[KIND_WALLPAPER]),
             new_cache,
@@ -258,6 +263,14 @@ class LibraryCoordinator(DataUpdateCoordinator[LibraryData]):
         for cover in self.covers_dir.glob("*.jpg"):
             if cover.name not in keep:
                 cover.unlink(missing_ok=True)
+
+    def _prune_prepared(self, cache: dict[str, LibraryFile]) -> None:
+        if not self.prepared_dir.is_dir():
+            return
+        keep = {f.sha256 for f in cache.values()}
+        for prepared in self.prepared_dir.glob("*.epub"):
+            if prepared.name.split("-", 1)[0] not in keep:
+                prepared.unlink(missing_ok=True)
 
     def cover_path(self, sha256: str) -> Path | None:
         """Return the thumbnail of a library file, if there is one."""

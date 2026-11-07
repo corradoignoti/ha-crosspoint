@@ -15,6 +15,7 @@ from custom_components.crosspoint.const import (
     CONF_DEVICE_BOOKS_DIR,
     CONF_LIBRARY_PATH,
     CONF_MODEL,
+    CONF_OPTIMIZE_EPUB,
     CONF_SCAN_INTERVAL,
     CONF_SPLIT_CHAPTERS,
     CONF_SPLIT_THRESHOLD,
@@ -203,6 +204,7 @@ async def test_options_flow(hass: HomeAssistant, library):
         {
             CONF_SCAN_INTERVAL: 10,
             CONF_DEVICE_BOOKS_DIR: "ebooks/",
+            CONF_OPTIMIZE_EPUB: False,
             CONF_SPLIT_CHAPTERS: False,
             CONF_SPLIT_THRESHOLD: 20000.0,
         },
@@ -211,6 +213,7 @@ async def test_options_flow(hass: HomeAssistant, library):
     assert entry.options == {
         CONF_SCAN_INTERVAL: 10,
         CONF_DEVICE_BOOKS_DIR: "/ebooks",
+        CONF_OPTIMIZE_EPUB: False,
         CONF_SPLIT_CHAPTERS: False,
         CONF_SPLIT_THRESHOLD: 20000,
     }

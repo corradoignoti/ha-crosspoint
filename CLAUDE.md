@@ -57,6 +57,16 @@ A custom Home Assistant integration, distributed through HACS, that manages a li
 - Remove: request deletion through the web server (the firmware supports deleting files on the SD card). The book is marked as removed only after confirmation.
 - No operation is possible while the device is offline.
 
+## EPUB optimization
+
+- Mirrors the firmware file manager "Optimize EPUB" (`src/network/html/js/epub-optimizer.js` in crosspoint-reader) and the EPUBOptimizer of jtvargas/crosspoint-app (`epub_optimize.py`, option on by default).
+- Raster images (PNG, JPEG, GIF, WebP, BMP): grayscale on white, scaled down to the connected reader's screen, baseline JPEG quality 85, renamed to `.jpg` with references updated in XHTML, CSS, OPF and NCX. Kept as is: JPEGs under 200 KB that fit the screen, PNG/JPEG ornaments under 200 px, images above 50 megapixels, undecodable images.
+- Embedded fonts, their `@font-face` rules and their obfuscation entries in `META-INF/encryption.xml` are removed (the firmware never uses them). If `encryption.xml` covers anything else (DRM), the book is not touched.
+- Also: `width`/`height` dropped from `<img>`, SVG wrappers of raster images unwrapped, defensive stylesheet injected, `<meta name="cover">` added when missing, NCX `dtb:uid` synced with the package identifier.
+- Text-only books without fonts or SVG are not rebuilt; the result is used only when smaller than the original.
+- Order when sending: optimize, then split (after the font cleanup, books with only obfuscated fonts can be split too). Prepared copies are cached in the Home Assistant cache directory, keyed by book hash, settings, screen size and algorithm version, and pruned with the library.
+- Not done (they need per-image choices): image split/rotation and auto-crop of the firmware optimizer, and renaming files from metadata.
+
 ## Chapter splitting
 
 - Why: the firmware handles one spine item at a time. It inflates the whole XHTML file to the SD card and lays out all its pages before showing the first one, and redoes the layout after every font or layout change. Books with a few huge XHTML files (e.g. Project Gutenberg) make the reader wait a long time.

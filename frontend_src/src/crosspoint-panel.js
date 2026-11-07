@@ -10,6 +10,7 @@ import { styles } from "./styles.js";
 
 const STORAGE_KEY = "crosspoint-panel";
 const RESUBSCRIBE_DELAY_MS = 1500;
+const PREPARING = "preparing"; // progress value while the book is prepared
 
 function readPrefs() {
   try {
@@ -130,7 +131,10 @@ class CrossPointPanel extends LitElement {
     } else if (event.type === "progress") {
       this._progress = {
         ...this._progress,
-        [`${event.kind}:${event.file}`]: event.received / Math.max(event.total, 1),
+        // While the book is optimized and split there is no percentage yet.
+        [`${event.kind}:${event.file}`]: event.preparing
+          ? PREPARING
+          : event.received / Math.max(event.total, 1),
       };
     } else if (event.type === "closed") {
       // The entry was reloaded (e.g. options changed): subscribe again.
@@ -453,7 +457,9 @@ class CrossPointPanel extends LitElement {
                 </div>`
               : nothing}
           <span class="badge ${item.status}">${t(`status_${item.status}`)}</span>
-          ${busy && progress !== undefined
+          ${busy && progress === PREPARING
+            ? html`<div class="meta">${t("preparing")}</div>`
+            : busy && progress !== undefined
             ? html`<div class="meta">
                   ${t("sending", { percent: Math.round(progress * 100) })}
                 </div>
