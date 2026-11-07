@@ -1,6 +1,6 @@
 [project]
 name = "ha-crosspoint"
-version = "0.1.1"
+version = "0.1.2"
 description = "Home Assistant custom integration for CrossPoint e-readers"
 requires-python = ">=3.13"
 license = "MIT"
