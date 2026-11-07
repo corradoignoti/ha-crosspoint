@@ -20,7 +20,9 @@ from .const import (
     DEVICE_ID_PLUGIN,
     DEVICE_POLL_INTERVAL_S,
     DOMAIN,
+    MODELS,
     REDISCOVERY_INTERVAL_S,
+    guess_model,
 )
 from .discovery import async_discover
 
@@ -111,15 +113,23 @@ class CrossPointDeviceCoordinator(DataUpdateCoordinator[DeviceState]):
         return state
 
     def _update_device_registry(self, status: dict[str, Any]) -> None:
-        version = status.get("version")
-        if not version:
-            return
         registry = dr.async_get(self.hass)
         device = registry.async_get_device_by_identifier(
             (DOMAIN, self.config_entry.entry_id), self.config_entry.entry_id
         )
-        if device and device.sw_version != version:
-            registry.async_update_device(device.id, sw_version=str(version))
+        if device is None:
+            return
+        changes: dict[str, str] = {}
+        if (version := status.get("version")) and device.sw_version != str(version):
+            changes["sw_version"] = str(version)
+        if key := guess_model(status.get("device")):
+            name = MODELS[key].name
+            if device.model != name:
+                changes["model"] = name
+                if device.name_by_user is None:
+                    changes["name"] = name
+        if changes:
+            registry.async_update_device(device.id, **changes)
 
     async def _async_rediscover(self) -> dict[str, Any] | None:
         """Look for a reader on the network when the known address fails.

@@ -197,3 +197,17 @@ async def test_reconcile_runs_when_device_comes_online(
     entry = await setup_device_entry()
     await hass.async_block_till_done(wait_background_tasks=True)
     assert entry.runtime_data.store.get("book", "Dune.epub") is not None
+
+
+async def test_reconcile_adopts_book_in_sd_root(hass, entry, device, books):
+    """Books copied by hand to the SD card root are matched too."""
+    device.files["/Dune.epub"] = (books / "Dune.epub").read_bytes()
+    result = await hass.services.async_call(
+        DOMAIN,
+        "reconcile_device",
+        {"config_entry_id": entry.entry_id},
+        blocking=True,
+        return_response=True,
+    )
+    assert result["adopted"] == 1
+    assert entry.runtime_data.store.get("book", "Dune.epub").device_path == "/Dune.epub"

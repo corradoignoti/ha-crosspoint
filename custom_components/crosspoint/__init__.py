@@ -22,6 +22,7 @@ from .const import (
     MODELS,
     SUBENTRY_SYNC_USER,
     DeviceModel,
+    guess_model,
 )
 from .coordinator import CrossPointDeviceCoordinator
 from .library import LibraryCoordinator, async_remove_library_cache
@@ -44,13 +45,30 @@ class CrossPointRuntimeData:
     """Objects shared by the platforms of one config entry."""
 
     client: CrossPointDeviceClient
-    model: DeviceModel
+    configured_model: DeviceModel
     coordinator: CrossPointDeviceCoordinator
     store: TransferStore
     books: BookManager
     wallpapers: WallpaperManager
     library: LibraryCoordinator
     stats: dict[str, ReadingStatsCoordinator]
+
+    @property
+    def model(self) -> DeviceModel:
+        """Model of the active reader, or the configured one if unknown.
+
+        Several readers can share an entry, so the model reported by the
+        connected reader wins over the one chosen in the config flow.
+        """
+        reported = None
+        if self.coordinator.data and self.coordinator.data.online:
+            reported = self.coordinator.data.status.get("device")
+        if reported is None:
+            active = self.store.active_device
+            known = next((d for d in self.store.devices if d.device_id == active), None)
+            reported = known.model if known else None
+        key = guess_model(reported)
+        return MODELS[key] if key else self.configured_model
 
 
 type CrossPointConfigEntry = ConfigEntry[CrossPointRuntimeData]
@@ -76,7 +94,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: CrossPointConfigEntry) -
     await store.async_load()
     entry.runtime_data = CrossPointRuntimeData(
         client=client,
-        model=MODELS[entry.data[CONF_MODEL]],
+        configured_model=MODELS[entry.data[CONF_MODEL]],
         coordinator=coordinator,
         store=store,
         books=BookManager(hass, entry, coordinator, store),

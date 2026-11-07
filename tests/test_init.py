@@ -214,3 +214,37 @@ async def test_rediscovery_is_throttled(hass: HomeAssistant, entry, no_discovery
 async def test_serial_is_the_fallback_reader_id(hass: HomeAssistant, entry):
     await _setup(hass, entry, AsyncMock(return_value={**STATUS, "serial": "X4BW02"}))
     assert entry.runtime_data.store.active_device == "serial:X4BW02"
+
+
+async def test_model_follows_the_connected_reader(hass: HomeAssistant, tmp_path):
+    """An entry configured as Cross-Share shows an X4 when an X4 is connected."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id="192.168.188.66",
+        data={
+            "host": "192.168.188.66",
+            CONF_MODEL: "cross_share",
+            CONF_WS_PORT: 81,
+            CONF_LIBRARY_PATH: str(tmp_path),
+            CONF_BOOKS_DIR: "books",
+            CONF_WALLPAPERS_DIR: "wallpapers",
+        },
+    )
+    entry.add_to_hass(hass)
+    status = {**STATUS, "device": "xteink_x4_classic", "deviceId": "dev-a"}
+    get_status = AsyncMock(return_value=status)
+    await _setup(hass, entry, get_status)
+
+    assert entry.runtime_data.model.key == "xteink_x4"
+    device = dr.async_get(hass).async_get_device_by_identifier(
+        (DOMAIN, entry.entry_id), entry.entry_id
+    )
+    assert device.model == "Xteink X4"
+    assert device.name == "Xteink X4"
+
+    # Offline, the last known model of the active reader is kept.
+    get_status.side_effect = OFFLINE
+    with patch(GET_STATUS, get_status):
+        await _tick(hass)
+    assert not entry.runtime_data.coordinator.online
+    assert entry.runtime_data.model.key == "xteink_x4"

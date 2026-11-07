@@ -63,6 +63,7 @@ from .const import (
     DOMAIN,
     MODELS,
     SUBENTRY_SYNC_USER,
+    guess_model,
 )
 from .discovery import DiscoveredDevice, async_discover
 
@@ -108,18 +109,6 @@ def _library_schema(defaults: dict[str, Any]) -> vol.Schema:
             ): TextSelector(),
         }
     )
-
-
-def _guess_model(status: dict[str, Any]) -> str | None:
-    """Map the firmware ``device`` field to a known model, when recognizable."""
-    device = str(status.get("device", "")).lower().replace("-", " ")
-    if "x3" in device:
-        return "xteink_x3"
-    if "x4" in device:
-        return "xteink_x4"
-    if "cross share" in device or "crossshare" in device:
-        return "cross_share"
-    return None
 
 
 async def _async_probe(hass: HomeAssistant, host: str, ws_port: int) -> dict | None:
@@ -262,7 +251,7 @@ class CrossPointConfigFlow(ConfigFlow, domain=DOMAIN):
             self._abort_if_unique_id_configured()
 
             status = await _async_probe(self.hass, host, ws_port)
-            if prefill and status and (model := _guess_model(status)):
+            if prefill and status and (model := guess_model(status.get("device"))):
                 defaults[CONF_MODEL] = model
 
             if prefill:

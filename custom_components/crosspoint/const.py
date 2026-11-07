@@ -67,3 +67,18 @@ MODELS: Final[dict[str, DeviceModel]] = {
     )
 }
 DEFAULT_MODEL: Final = "xteink_x4"
+
+
+def guess_model(device: object) -> str | None:
+    """Map the firmware ``device`` status field to a known model key.
+
+    Real values include ``xteink_x4_classic``; unknown values return None.
+    """
+    name = str(device or "").lower().replace("-", " ")
+    if "x3" in name:
+        return "xteink_x3"
+    if "x4" in name:
+        return "xteink_x4"
+    if "cross share" in name or "crossshare" in name or "cross_share" in name:
+        return "cross_share"
+    return None

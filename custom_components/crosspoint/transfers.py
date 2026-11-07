@@ -289,8 +289,13 @@ class BookManager(TransferManager):
         return self._entry.options.get(CONF_DEVICE_BOOKS_DIR, DEFAULT_DEVICE_BOOKS_DIR)
 
     async def _async_device_epubs(self) -> list[tuple[str, int]]:
-        """Return (device path, size) of the EPUBs under the books folder."""
-        found: list[tuple[str, int]] = []
+        """Return (device path, size) of the EPUBs in the root and books folder."""
+        found: dict[str, int] = {}
+        # EPUBs copied by hand often sit in the SD card root: look there too
+        # (root files only, the books folder is walked below).
+        for f in await self._async_list("/") or []:
+            if not f.is_directory and f.name.lower().endswith(".epub"):
+                found["/" + f.name] = f.size
         pending = [(self.device_dir, 0)]
         while pending:
             folder, depth = pending.pop()
@@ -301,8 +306,8 @@ class BookManager(TransferManager):
                     if depth < _MAX_SCAN_DEPTH:
                         pending.append((path, depth + 1))
                 elif f.name.lower().endswith(".epub"):
-                    found.append((path, f.size))
-        return found
+                    found[path] = f.size
+        return list(found.items())
 
     async def _async_adopt_untracked(self) -> int:
         """Track device books that match a library book by name and size.
