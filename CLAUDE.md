@@ -84,7 +84,7 @@ A custom Home Assistant integration, distributed through HACS, that manages a li
   - Normal: uncompressed 24-bit BMP, with dithering.
   - Transparent: PNG with alpha channel (overlay on top of the current screen).
 - Warn the user when transparent mode is chosen for an image without transparency.
-- Destination on the device: the sleep screen folder on the SD card (the firmware picks one at random when several are present).
+- Destination on the device: `/sleep` (normal) and `/sleep-overlay` (transparent). The firmware merges them with `/.sleep` and `/.sleep-overlay` and picks one image at random, but its web server refuses names starting with a dot ("Cannot create protected item", HTTP 403), so the dot folders cannot be used over Wi-Fi.
 - Note: XTC is not used; it is the pre-rendered book page format of the stock firmware.
 
 ## Reading stats widget
@@ -113,6 +113,5 @@ A custom Home Assistant integration, distributed through HACS, that manages a li
 ## To verify
 
 - Exact CrossPoint web server endpoints for upload, deletion and listing (docs/webserver-endpoints.md in the crosspoint-reader repository).
-- Exact path of the sleep folder and of transparent overlays in the firmware version in use.
 
 * Exact response shape of the CrossPoint Sync stats endpoints ([docs/API.md](https://github.com/crosspoint-reader/crosspoint-sync/blob/main/docs/API.md)).

@@ -58,12 +58,15 @@ UDP discovery, port 8134: send `hello`, the reply is
 
 Source: `USER_GUIDE.md` in `crosspoint-reader/crosspoint-reader`.
 
-- Normal sleep images: `/.sleep/` (fallback `/sleep/`), uncompressed 24-bit BMP
+- Normal sleep images: `/.sleep/` and `/sleep/` (merged), uncompressed 24-bit BMP
   recommended. A root `sleep.bmp` takes priority over both folders. The firmware
   picks one image at random when several are present.
 - Transparent overlays (sleep mode "Transparent" or "Cover + Transparent"):
-  `/.sleep-overlay/` (fallback `/sleep-overlay/`). PNG with alpha channel, or
+  `/.sleep-overlay/` and `/sleep-overlay/` (merged). PNG with alpha channel, or
   32-bit BGRA BMP. Opaque white pixels erase the content behind them.
+- The web server refuses names starting with a dot (`Cannot create protected
+  item`, HTTP 403), so the integration sends to `/sleep/` and `/sleep-overlay/`
+  (verified on firmware 2.0.0, Xteink X4).
 
 ### CrossPoint Sync API
 
@@ -213,9 +216,9 @@ tests/
   (LANCZOS), grayscale, Floyd-Steinberg dithering to 4 evenly spaced gray
   levels (0, 85, 170, 255).
 - Normal mode: alpha flattened on white, uncompressed 24-bit BMP sent to
-  `/.sleep/`.
+  `/sleep/`.
 - Transparent mode: dithered gray in RGB plus the original alpha channel, PNG
-  sent to `/.sleep-overlay/`. An image without transparent pixels is refused
+  sent to `/sleep-overlay/`. An image without transparent pixels is refused
   unless `force` is set; `WallpaperManager.async_check()` reports
   transparency without the device, for the panel warning.
 - Device file names are `<safe stem>-<first 8 hex of source SHA-256>.<ext>`:
@@ -306,8 +309,6 @@ tests/
   stats: needed for daily reading minutes and a reading calendar in the
   card. Requires a real sample or the server source. `/api/v1/stats/global`
   is not used yet for the same reason.
-- Deleting files inside dot-folders (`/.sleep`, `/.sleep-overlay`): to be
-  tested on real firmware, since dotfiles are hidden from listings.
 - Values of `/api/status` `device` for each model, to make model detection
   reliable.
 - Default destination folder for books on the device (`/Books` assumed).

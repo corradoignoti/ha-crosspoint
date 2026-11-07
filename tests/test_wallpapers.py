@@ -61,7 +61,7 @@ def _status(entry, file):
 async def test_send_normal(hass: HomeAssistant, entry, device):
     response = await _send(hass, entry, "sea.png")
     path = response["device_path"]
-    assert path.startswith("/.sleep/sea-") and path.endswith(".bmp")
+    assert path.startswith("/sleep/sea-") and path.endswith(".bmp")
     img = _image(device, path)
     assert (img.format, img.mode, img.size) == ("BMP", "RGB", (480, 800))
     tracked = entry.runtime_data.store.get("wallpaper", "sea.png")
@@ -76,14 +76,14 @@ async def test_transparent_needs_transparency(hass: HomeAssistant, entry, device
     assert device.files == {}
 
     response = await _send(hass, entry, "sea.png", mode="transparent", force=True)
-    assert response["device_path"].startswith("/.sleep-overlay/")
+    assert response["device_path"].startswith("/sleep-overlay/")
     assert response["has_transparency"] is False
 
 
 async def test_transparent_overlay(hass: HomeAssistant, entry, device):
     response = await _send(hass, entry, "clock overlay.png", mode="transparent")
     path = response["device_path"]
-    assert path.startswith("/.sleep-overlay/clock_overlay-") and path.endswith(".png")
+    assert path.startswith("/sleep-overlay/clock_overlay-") and path.endswith(".png")
     assert response["has_transparency"] is True
     img = _image(device, path)
     assert (img.mode, img.size) == ("RGBA", (480, 800))

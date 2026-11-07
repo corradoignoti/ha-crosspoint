@@ -132,7 +132,7 @@ async def test_wallpaper_commands(hass, entry, hass_ws_client):
 
     await client.send_json_auto_id({"type": "crosspoint/send_wallpaper", **base})
     msg = await client.receive_json()
-    assert msg["result"]["device_path"].startswith("/.sleep/")
+    assert msg["result"]["device_path"].startswith("/sleep/")
 
     await client.send_json_auto_id({"type": "crosspoint/remove_wallpaper", **base})
     assert (await client.receive_json())["success"]

@@ -46,9 +46,12 @@ DEFAULT_DEVICE_BOOKS_DIR: Final = "/Books"
 DEFAULT_OPTIMIZE_EPUB: Final = True
 DEFAULT_SPLIT_CHAPTERS: Final = True
 DEFAULT_SPLIT_THRESHOLD: Final = 15_000  # characters of visible text
-# Sleep screen folders read by the firmware (it picks one image at random).
-DEVICE_SLEEP_DIR: Final = "/.sleep"
-DEVICE_SLEEP_OVERLAY_DIR: Final = "/.sleep-overlay"
+# Sleep screen folders read by the firmware: it merges /.sleep and /sleep (and
+# /.sleep-overlay and /sleep-overlay) and picks one image at random. The web
+# server refuses names starting with a dot ("Cannot create protected item"),
+# so files can only be sent to the folders without the dot.
+DEVICE_SLEEP_DIR: Final = "/sleep"
+DEVICE_SLEEP_OVERLAY_DIR: Final = "/sleep-overlay"
 
 EVENT_UPLOAD_PROGRESS: Final = f"{DOMAIN}_upload_progress"
 

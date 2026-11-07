@@ -9,6 +9,11 @@ from aiohttp import WSMsgType, web
 from aiohttp.test_utils import TestServer
 
 
+def _protected(path: str) -> bool:
+    """Like the firmware, refuse names starting with a dot (e.g. /.sleep)."""
+    return any(part.startswith(".") for part in path.split("/") if part)
+
+
 class FakeCrossPoint:
     """Implement the subset of the firmware HTTP and WebSocket API we use."""
 
@@ -59,6 +64,8 @@ class FakeCrossPoint:
 
     async def _upload(self, request: web.Request) -> web.Response:
         path = request.query.get("path", "/")
+        if _protected(path):
+            return web.Response(status=403, text="Cannot access protected items")
         overwrite = request.query.get("overwrite") in ("1", "true")
         form = await request.post()
         field = form["file"]
@@ -70,6 +77,8 @@ class FakeCrossPoint:
 
     async def _mkdir(self, request: web.Request) -> web.Response:
         form = await request.post()
+        if form["name"].startswith(".") or _protected(form.get("path", "/")):
+            return web.Response(status=403, text="Cannot create protected item")
         self.dirs.add(posixpath.join(form.get("path", "/"), form["name"]))
         return web.Response(text="Folder created")
 
@@ -87,6 +96,9 @@ class FakeCrossPoint:
         msg = await ws.receive()
         _, name, size, path = msg.data.split(":", 3)
         target = posixpath.join(path, name)
+        if _protected(target):
+            await ws.send_str("ERROR:Cannot write protected items")
+            return ws
         if target in self.files:
             await ws.send_str(f"ERROR:File already exists: {name}")
             return ws

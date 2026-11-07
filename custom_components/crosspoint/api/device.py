@@ -158,8 +158,8 @@ class CrossPointDeviceClient:
                 f.name for f in await self.list_files(current) if f.is_directory
             }
             if part not in existing:
-                # Dot-folders (e.g. /.sleep) are hidden from listings, so the
-                # folder may already exist; a real failure surfaces on upload.
+                # The folder may exist but be hidden from listings; a real
+                # failure surfaces on upload.
                 with contextlib.suppress(CrossPointResponseError):
                     await self.mkdir(current, part)
             current = posixpath.join(current, part)
